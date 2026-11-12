@@ -1,0 +1,33 @@
+@using AOB.BAL.Common.Enums
+@model AOB.BAL.DTOs.Projects.ProjectTechnicalEnvironmentDto
+
+<section class="sheet" aria-labelledby="ip-panel-h">
+    <div class="sheet-h">
+        <div style="flex:1">
+            <h2 class="h3" id="ip-panel-h">IP addresses to allow</h2>
+            <p class="xsmall muted">For your network team, if outbound traffic is restricted.</p>
+        </div>
+    </div>
+    <div class="sheet-b">
+        <div id="ipAllowlistNote" class="note you @(Model.OutboundAccess == OutboundAccess.RequiresAllowList ? "" : "is-hidden")" style="margin-bottom:12px">
+            <div>
+                <div class="nt">Add these before testing</div>
+                <div class="nd">You said outbound access is limited to allow-listed addresses.</div>
+            </div>
+        </div>
+        <div class="envtabs" role="tablist" aria-label="Environment">
+            <button type="button" role="tab" aria-selected="true" data-ip-tab="staging">Staging</button>
+            <button type="button" role="tab" aria-selected="false" data-ip-tab="production">Production</button>
+        </div>
+        <div class="ip-panel" data-ip-panel="staging">
+            <div data-ip-list></div>
+        </div>
+        <div class="ip-panel is-hidden" data-ip-panel="production">
+            <div data-ip-list></div>
+        </div>
+        <button type="button" class="ip-copy-all" id="ipCopyAll" hidden>
+            <svg class="i xs ip-copy-all-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
+            <span class="ip-copy-all-label">Copy all staging addresses</span>
+        </button>
+    </div>
+</section>

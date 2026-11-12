@@ -1,0 +1,44 @@
+@model Guid
+@{
+    // Shown in the project header while an information request waits for the customer.
+    // The customer gets a button to respond; PCI Pal staff see that the customer has been asked.
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var active = ViewContext.RouteData.Values["action"]?.ToString();
+}
+<div class="info-alert" role="alert">
+    <span class="info-alert__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+            <path d="M12 9v4M12 17h.01" />
+        </svg>
+    </span>
+    <div class="info-alert__body">
+        <span class="info-alert__eyebrow">@(readOnlyStaff ? "Waiting on customer" : "Action required")</span>
+        @if (readOnlyStaff)
+        {
+            <strong class="info-alert__title">Information requested from the customer</strong>
+            <span class="info-alert__text">The project is on hold until the customer sends the requested details.</span>
+        }
+        else
+        {
+            <strong class="info-alert__title">PCI Pal needs more information from you</strong>
+            <span class="info-alert__text">Send the requested details so we can continue setting up your project.</span>
+        }
+    </div>
+    @if (readOnlyStaff)
+    {
+        @if (active == "Details")
+        {
+            <a class="btn btn-sm btn-secondary info-alert__btn" href="#information-requests">View request</a>
+        }
+        else
+        {
+            <a class="btn btn-sm btn-secondary info-alert__btn" asp-controller="Projects" asp-action="Details" asp-route-customerId="@actingCustomerId" asp-route-id="@Model" asp-fragment="information-requests">View request</a>
+        }
+    }
+    else if (active != "ProvideInformation")
+    {
+        <a class="btn btn-sm btn-cta info-alert__btn" asp-controller="Projects" asp-action="ProvideInformation" asp-route-customerId="@actingCustomerId" asp-route-id="@Model">Provide information</a>
+    }
+</div>

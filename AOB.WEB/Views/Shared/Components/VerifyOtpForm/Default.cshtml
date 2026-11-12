@@ -1,0 +1,30 @@
+@model AOB.WEB.ViewModels.Auth.VerifyOtpViewModel
+
+<form asp-controller="Auth" asp-action="VerifyOtp" method="post" class="stack" data-auth-form novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+    <input asp-for="Email" type="hidden" />
+    <input asp-for="Otp" type="hidden" id="otp-hidden" autocomplete="one-time-code" />
+
+    <div class="field">
+        <label class="label req" for="otp-0">Code</label>
+        <div class="otp @(ViewData.ModelState.ErrorCount > 0 ? "is-invalid" : "")" role="group" aria-label="6-digit code" data-otp-group>
+            @for (var i = 0; i < 6; i++)
+            {
+                <input id="otp-@i" inputmode="numeric" maxlength="1" autocomplete="@(i == 0 ? "one-time-code" : "off")"
+                       aria-label="Digit @(i + 1)" data-otp-index="@i" />
+            }
+        </div>
+        <span asp-validation-for="Otp"></span>
+    </div>
+
+    <div class="auth-actions">
+        <button type="submit" class="btn btn-primary btn-lg btn-block sweep"><span class="spinner" aria-hidden="true"></span>Verify code</button>
+    </div>
+</form>
+
+<p class="small muted" style="margin:0">
+    No code?
+    <a asp-controller="Auth" asp-action="ForgotPassword" class="link small">Send a new code</a>
+</p>
+<p class="auth-alt" style="margin:4px 0 0"><a asp-controller="Auth" asp-action="Login" class="auth-link link">&larr; Back to sign in</a></p>

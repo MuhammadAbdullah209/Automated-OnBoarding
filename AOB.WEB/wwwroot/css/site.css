@@ -1,0 +1,134 @@
+/* Signed-in app content (shell in onboarding.css + _Layout.cshtml). */
+
+.content {
+  padding-block: 28px 72px;
+}
+
+/* Full-bleed pages (customer home, organisation band): band meets top bar with no canvas gap */
+.content.content--bleed {
+  padding: 0;
+  padding-block: 0;
+  background: var(--canvas);
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+}
+.page-head p { margin: 6px 0 0; font-size: 14px; color: var(--ink-2); max-width: 66ch; }
+
+.form-card { max-width: 640px; }
+.form-actions { display: flex; gap: 10px; padding-top: 6px; flex-wrap: wrap; }
+
+/* ---------- dashboard ---------- */
+.dash-section { margin-bottom: 28px; }
+.dash-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.dash-section-head h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
+.dash-section-head p { margin: 4px 0 0; font-size: 13px; color: var(--ink-3); }
+.dash-section-link { font-size: 13px; font-weight: 600; color: var(--blue); text-decoration: none; }
+.dash-section-link:hover { text-decoration: underline; }
+
+.dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 12px;
+}
+.dash-kpi {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r3);
+  box-shadow: var(--sh-2);
+  padding: 18px 20px;
+  min-height: 96px;
+}
+.dash-kpi-value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.dash-kpi-label { font-size: 12.5px; font-weight: 500; color: var(--ink-3); }
+.dash-kpi-hint { font-size: 11px; color: var(--mute); margin-top: 4px; }
+.dash-kpi.tone-navy .dash-kpi-value { color: var(--color-primary); }
+.dash-kpi.tone-amber .dash-kpi-value { color: var(--you); }
+.dash-kpi.tone-purple .dash-kpi-value { color: var(--pp); }
+.dash-kpi.tone-green .dash-kpi-value,
+.dash-kpi.tone-green-bright .dash-kpi-value { color: var(--ok); }
+.dash-kpi.tone-gray .dash-kpi-value { color: var(--ink-2); }
+
+.dash-profile-callout {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 22%) 1fr;
+  gap: 16px 28px;
+  align-items: center;
+  margin: -28px calc(-1 * max(32px, env(safe-area-inset-left, 0px))) 22px;
+  padding: 20px max(32px, env(safe-area-inset-right, 0px)) 20px 18px;
+  background: var(--you-wash);
+  border-bottom: 1px solid var(--you-line);
+  color: var(--you-ink);
+}
+.dash-profile-callout-dismiss {
+  width: 40px; height: 40px; border: 0; border-radius: var(--r2);
+  background: transparent; color: inherit; cursor: pointer;
+}
+.dash-profile-callout-dismiss:hover { background: rgba(255, 255, 255, .5); }
+.dash-profile-callout-title { margin: 0; font-size: 15px; font-weight: 600; }
+.dash-profile-callout-text { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+.dash-profile-callout-link { color: var(--blue-ink); font-weight: 600; }
+
+@media (max-width: 768px) {
+  .dash-profile-callout {
+    grid-template-columns: auto 1fr;
+    margin-inline: -16px;
+    padding: 16px;
+  }
+  .dash-profile-callout-text { grid-column: 1 / -1; }
+  .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- customer profile / documents (existing structure, prototype colours) ---------- */
+.customer-profile-page.step-page { max-width: none; width: 100%; }
+.profile-section-title {
+  margin: 0 0 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 600;
+}
+.profile-section-hint { margin: 0 0 14px; font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 22px;
+}
+@media (max-width: 720px) { .profile-form-grid { grid-template-columns: 1fr; } }
+
+.doc-checklist-item {
+  border: 1px solid var(--line);
+  border-radius: var(--r2);
+  background: var(--paper);
+  padding: 16px 18px;
+  box-shadow: var(--sh-1);
+}
+
+textarea.tinput { resize: vertical; min-height: 96px; line-height: 1.5; }

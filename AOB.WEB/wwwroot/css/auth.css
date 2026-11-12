@@ -1,0 +1,411 @@
+/* Auth landing (lp-*) — sign-in screen matches PCI-Pal-Onboarding-Prototype v1.2 */
+
+.auth-panel { width: 100%; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+.lp-side::-webkit-scrollbar { width: 6px; }
+.lp-side::-webkit-scrollbar-thumb {
+  background: rgba(143, 178, 255, .35);
+  border-radius: 999px;
+}
+
+/* ---------- landing motion ---------- */
+.lp-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  top: 62%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .9), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: lpbeam 7s ease-in-out infinite;
+}
+@keyframes lpbeam { 0% { background-position: -60% 0; } 100% { background-position: 160% 0; } }
+
+.lp-hero h2 .l { display: block; overflow: hidden; padding-bottom: .04em; }
+.lp-hero h2 .l i { display: block; font-style: normal; }
+.lp-anim .lp-hero h2 .l i { transform: translateY(105%); animation: lprise .9s var(--ease) forwards; }
+.lp-anim .lp-hero h2 .l:nth-child(2) i { animation-delay: .12s; }
+.lp-anim .lp-hero > p { opacity: 0; animation: lpfade .8s .45s var(--ease) forwards; }
+.lp-anim .lp-proj { opacity: 0; transform: translateY(24px); animation: lpcard .9s .6s var(--ease) forwards, lpbob 7s 1.6s ease-in-out infinite; }
+@keyframes lprise { to { transform: none; } }
+@keyframes lpfade { to { opacity: 1; } }
+@keyframes lpcard { to { opacity: 1; transform: none; } }
+@keyframes lpbob { 50% { transform: translateY(-8px); } }
+
+/* ---------- example projects card ---------- */
+.lp-proj {
+  margin-top: clamp(16px, 3.4vh, 36px);
+  background: #fff;
+  color: var(--ink);
+  border-radius: var(--r4);
+  overflow: hidden;
+  box-shadow: 0 40px 80px -24px rgba(76, 95, 134, .55), 0 0 0 1px rgba(255, 255, 255, .6);
+}
+.lp-proj header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: clamp(10px, 1.8vh, 16px) 22px;
+  border-bottom: 1px solid var(--line);
+}
+.lp-proj header strong { font-size: 15px; font-weight: 600; }
+.lp-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  background: #eef0f5;
+  color: var(--ink-3);
+  padding: 5px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.lp-row { padding: clamp(10px, 1.8vh, 16px) 22px; border-bottom: 1px solid #eceff5; }
+.lp-row.last { border-bottom: 0; }
+.lp-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(8px, 1.3vh, 12px);
+}
+.lp-name {
+  font-weight: 600;
+  font-size: 15px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lp-bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.lp-bars i {
+  position: relative;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--track);
+  overflow: hidden;
+}
+.lp-bars i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--c, var(--blue));
+  transform: scaleX(1);
+  transform-origin: left;
+}
+.lp-anim .lp-bars i::after {
+  transform: scaleX(0);
+  animation: lpfill .7s var(--ease) forwards;
+  animation-delay: calc(1s + var(--d, 0) * .16s);
+}
+@keyframes lpfill { to { transform: scaleX(1); } }
+.lp-bars i.off { background: var(--track); }
+.lp-bars i.off::after { display: none; }
+.lp-bars i.lp-now::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .75), transparent);
+  transform: translateX(-100%);
+  animation: shine 2.2s 2.4s ease-in-out infinite;
+}
+@keyframes shine { 60%, 100% { transform: translateX(100%); } }
+.lp-stages {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: clamp(9px, 1.5vh, 14px) 22px;
+  background: #f6f7fb;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+
+/* court badges (who has the next step) */
+.court {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+.court .who {
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.court.ok { background: var(--ok-wash); border-color: var(--ok-line); color: var(--ok-ink); }
+.court.ok .who { background: var(--ok); }
+.court.pp { background: var(--pp-wash); border-color: var(--pp-line); color: var(--pp-ink); }
+.court.pp .who { background: var(--pp); }
+.court.you { background: var(--you-wash); border-color: var(--you-line); color: var(--you-ink); }
+.court.you .who { background: var(--you); }
+
+.lp-foot-help { color: var(--ink); font-weight: 600; font-size: 14px; }
+
+/* ---------- sign-in card entrance (with lp-anim on .lp) ---------- */
+.lp-anim .lp-card {
+  opacity: 0;
+  transform: translateY(30px) scale(.98);
+  animation: lpcard .9s .35s var(--ease) forwards;
+}
+
+/* ---------- sign-in card ---------- */
+.lp-card .eyebrow {
+  font-size: 12px;
+  letter-spacing: .14em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.lp-card .h1 { font-size: clamp(28px, 4.2vh, 34px); letter-spacing: -.025em; font-weight: 700; }
+.lp-card .lede { color: var(--ink-3); font-size: 15px; }
+.lp-card .label { font-size: 15px; }
+.lp-card .tinput, .lp-card .input { min-height: clamp(46px, 6vh, 54px); font-size: 16px; padding-inline: 16px; }
+/* Prototype: neutral border until ASP.NET/jQuery marks a field invalid (not HTML5 :invalid) */
+.lp-card .tinput:invalid:not(.input-validation-error),
+.lp-card .input:invalid:not(.input-validation-error) {
+  border-color: var(--control);
+  box-shadow: none;
+}
+.lp-card .btn.lg { min-height: clamp(48px, 6.4vh, 56px); font-size: 17px; }
+.lp-card .btn-quiet.lg { font-size: 16px; }
+.lp-card .btn-quiet:hover { transform: translateY(-1px); }
+
+.auth-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r2);
+  font-size: 14px;
+  font-weight: 600;
+}
+.auth-banner.ok {
+  background: var(--ok-wash);
+  border: 1px solid var(--ok-line);
+  color: var(--ok-ink);
+}
+.auth-banner.bad {
+  background: var(--bad-wash);
+  border: 1px solid var(--bad-line);
+  color: var(--bad-ink);
+}
+.auth-banner .i { flex: none; color: var(--ok); }
+.auth-banner.bad .i { color: var(--bad); }
+
+.steps3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.steps3 .s {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.steps3 .s i {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  font-style: normal;
+}
+.steps3 .s.done { color: var(--ok-ink); }
+.steps3 .s.done i { background: var(--ok); }
+.steps3 .s.cur { color: var(--ink); }
+.steps3 .s.cur i { background: var(--blue); }
+
+.otp { display: flex; gap: 8px; flex-wrap: wrap; }
+.otp input {
+  width: 50px;
+  height: 58px;
+  text-align: center;
+  font-family: var(--f-mono);
+  font-size: 24px;
+  border: 1px solid var(--control);
+  border-radius: var(--r2);
+  background: #fff;
+  padding: 0;
+}
+.otp input:focus {
+  outline: none;
+  border-color: var(--color-primary-light);
+  box-shadow: var(--ring);
+}
+.otp.is-invalid input { border-color: var(--bad); }
+
+.pw-rules-wrap { margin-top: 4px; }
+
+.input-wrap { position: relative; }
+.input-wrap .tinput, .input-wrap .input { padding-right: 46px; width: 100%; }
+.input-wrap .eye {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  margin-top: -20px;
+  height: 40px;
+  width: 40px;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.input-wrap .eye:hover { background: var(--wash); color: var(--ink); }
+.input-wrap .eye .i { width: 18px; height: 18px; }
+
+.check {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  line-height: 1.45;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin: 0;
+}
+.check input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.check .box {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--control);
+  border-radius: 6px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #fff;
+  transition: all .2s var(--ease);
+}
+.check input:checked + .box { background: var(--blue); border-color: var(--blue); }
+.check input:checked + .box svg { opacity: 1; }
+.check .box svg { opacity: 0; }
+.check input:focus-visible + .box { outline: 3px solid var(--color-primary-light); outline-offset: 2px; }
+
+.btn.sweep::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  left: -80px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent);
+  transform: skewX(-20deg);
+  animation: sweep 4.5s 2s infinite;
+  pointer-events: none;
+}
+@keyframes sweep { 30%, 100% { left: 120%; } }
+
+.auth-resend { margin: 10px 0 0; line-height: 1.5; }
+
+.tracker { display: flex; align-items: flex-start; margin: 0 0 18px; padding: 0; list-style: none; }
+.tstep { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
+.tstep .circle {
+  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 700; border: 2px solid var(--line-2); background: #fff; color: var(--mute); z-index: 2;
+}
+.tstep .line { position: absolute; top: 13px; left: calc(-50% + 14px); width: calc(100% - 28px); height: 2px; background: var(--line-2); z-index: 1; }
+.tstep:first-child .line { display: none; }
+.tstep .lab { font-size: 10.8px; margin-top: 7px; color: var(--ink-3); font-weight: 600; text-align: center; max-width: 88px; }
+.tstep.done .circle { background: var(--ok); border-color: var(--ok); color: #fff; }
+.tstep.done .line, .tstep.current .line { background: var(--ok); }
+.tstep.current .circle { background: var(--color-primary); border-color: var(--color-primary); color: #fff; box-shadow: var(--ring); }
+.tstep.current .lab { color: var(--blue-ink); }
+
+.auth-head { margin-bottom: 0; }
+.auth-head h1 { margin: 0; }
+.auth-note { margin: 0 0 12px; font-size: 13.5px; color: var(--ink-3); }
+.tinput-code { font-family: var(--f-mono); font-size: 18px; letter-spacing: .25em; text-align: center; }
+.auth-link { color: var(--blue); font-weight: 600; text-decoration: none; font-size: 13px; }
+.auth-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.auth-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 0; }
+.auth-alt { margin-top: 4px; font-size: 13px; color: var(--ink-3); text-align: center; }
+
+/* Register footer — PCI-Pal-Onboarding-Prototype index.html prep2 */
+.prep2 { border-top: 1px solid var(--line); padding-top: 16px; }
+.prep2 ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.prep2 li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+.prep2 li svg { color: var(--blue); }
+
+.lp-card .btn.btn-primary.btn-lg {
+  box-shadow: var(--sh-btn);
+  font-weight: 600;
+}
+.lp-card .btn.btn-primary.btn-lg:hover {
+  box-shadow: 0 16px 30px -10px rgba(37, 89, 177, .65);
+}
+
+.lp-card .pw-rules-wrap { margin-top: 6px; }
+.lp-card .pw-rules-wrap .meter4 { margin-top: 2px; margin-bottom: 6px; }
+.lp-card .rules.pw-checklist { margin: 0; padding: 0; list-style: none; }
+.lp-card .rule-i .pw-dot svg {
+  opacity: 0;
+  transition: opacity .15s var(--ease);
+}
+.lp-card .rule-i.ok .pw-dot svg { opacity: 1; }
+
+@media (max-width: 980px) {
+  .lp-proj { margin-top: 28px; }
+  .court { font-size: 12px; }
+}
+
+@media (max-width: 420px) {
+  .prep2 ul { grid-template-columns: 1fr; }
+  .lp-card { padding: 28px 20px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-anim .lp-hero h2 .l i { transform: none; animation: none; }
+  .lp-anim .lp-hero > p,
+  .lp-anim .lp-proj,
+  .lp-anim .lp-card { opacity: 1; transform: none; animation: none; }
+  .lp-anim .lp-bars i::after { transform: scaleX(1); animation: none; }
+  .lp-beam { animation: none; }
+}

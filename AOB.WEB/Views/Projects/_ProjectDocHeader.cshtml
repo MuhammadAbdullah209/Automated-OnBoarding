@@ -1,0 +1,19 @@
+@{
+    var sectionNo = ViewData["DocSectionNo"] as string ?? "01";
+    var title = ViewData["DocTitle"] as string ?? ViewData["Title"]?.ToString() ?? "";
+    var lede = ViewData["DocLede"] as string ?? "";
+    var requiredNote = ViewData["DocRequiredNote"] as bool? ?? true;
+}
+<div class="doc-h">
+    <span class="secno">@sectionNo</span>
+    <div>
+        <h2 class="h2" id="sec-h">@title</h2>
+        @if (!string.IsNullOrEmpty(lede))
+        {
+            <p class="muted" style="margin-top:4px;max-width:70ch">
+                @lede@if (requiredNote) { @: All questions are required unless marked optional.
+                }
+            </p>
+        }
+    </div>
+</div>

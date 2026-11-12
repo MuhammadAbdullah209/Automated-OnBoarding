@@ -1,0 +1,147 @@
+@model AOB.WEB.ViewModels.Customers.CustomerProfileOverviewViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Helpers
+@{
+    var p = Model.Profile;
+    var editSection = Model.EditSection;
+
+    static string Display(string? value) => string.IsNullOrWhiteSpace(value)
+        ? "<span class=\"muted\" style=\"font-weight:400\">-</span>"
+        : System.Net.WebUtility.HtmlEncode(value);
+
+    var country = CustomerFormOptions.LabelFor(CustomerFormOptions.Countries, p.RegisteredCountryCode?.ToUpperInvariant());
+    var sector = CustomerFormOptions.LabelFor(CustomerFormOptions.IndustrySectors, p.IndustrySector);
+    var operating = CustomerFormOptions.LabelFor(CustomerFormOptions.OperatingPatterns, p.OperatingPattern);
+    var timeZone = CustomerFormOptions.LabelFor(CustomerFormOptions.TimeZones, p.PrimaryTimeZone);
+
+    string WebsiteHtml()
+    {
+        if (string.IsNullOrWhiteSpace(p.CompanyWebsite))
+        {
+            return Display(null);
+        }
+        var href = p.CompanyWebsite.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? p.CompanyWebsite
+            : "https://" + p.CompanyWebsite;
+        return $"<a href=\"{System.Net.WebUtility.HtmlEncode(href)}\" target=\"_blank\" rel=\"noopener\">{System.Net.WebUtility.HtmlEncode(p.CompanyWebsite)}</a>";
+    }
+
+    var sections = new (string Key, string Title, string Desc, (string Label, string ValueHtml)[] Rows)[]
+    {
+        ("company", "Company details", "Used for your PCI Pal agreement and tenant configuration.", new[]
+        {
+            ("Company name", Display(p.CompanyName)),
+            ("Registration number", Display(p.CompanyRegistrationNumber)),
+            ("Registered country", Display(string.IsNullOrWhiteSpace(country) || country == "—" ? null : country)),
+            ("Industry sector", Display(string.IsNullOrWhiteSpace(sector) || sector == "—" ? null : sector)),
+            ("Website", WebsiteHtml())
+        }),
+        ("pc", "Primary project contact", "Our main contact for questions and approvals during onboarding.", new[]
+        {
+            ("Name", Display(p.PrimaryContactFullName)),
+            ("Job title", Display(p.PrimaryContactJobTitle)),
+            ("Email", Display(p.PrimaryContactEmail)),
+            ("Phone", Display(p.PrimaryContactPhoneNumber))
+        }),
+        ("tc", "Technical contact", "Receives integration and configuration updates.", new[]
+        {
+            ("Name", Display(p.TechnicalContactFullName)),
+            ("Job title", Display(p.TechnicalContactJobTitle)),
+            ("Email", Display(p.TechnicalContactEmail)),
+            ("Phone", Display(p.TechnicalContactPhoneNumber))
+        }),
+        ("hours", "Operating hours", "Used to plan support and activation timing.", new[]
+        {
+            ("Pattern", Display(string.IsNullOrWhiteSpace(operating) || operating == "—" ? null : operating)),
+            ("Primary timezone", Display(string.IsNullOrWhiteSpace(timeZone) || timeZone == "—" ? null : timeZone))
+        }),
+        ("partner", "Technology partner", "A system integrator, reseller or consultant involved in this deployment.", new[]
+        {
+            ("Technology partner involved", Display(p.HasTechnologyPartner ? "Yes" : "No"))
+        })
+    };
+}
+
+<div class="org-grid">
+    <nav class="toc" aria-label="Profile sections">
+        @foreach (var s in sections)
+        {
+            var isPartnerSection = s.Key == "partner";
+            var partnerNa = isPartnerSection && CustomerProfileCompletionRules.IsTechnologyPartnerSectionNotApplicable(p);
+            var ok = CustomerProfileCompletionRules.IsOrganisationSectionComplete(s.Key, p);
+            var tocActive = string.Equals(editSection, s.Key, StringComparison.OrdinalIgnoreCase);
+            <a class="toc-link @(tocActive ? "is-active" : "")" href="#@($"os-{s.Key}")" data-toc-for="@($"os-{s.Key}")" aria-current="@(tocActive ? "location" : null)">
+                <span class="tick @(partnerNa ? "na" : ok ? "on" : "warn")" aria-hidden="true">
+                    @if (partnerNa)
+                    {
+                        <text>—</text>
+                    }
+                    else if (ok)
+                    {
+                        <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    }
+                    else
+                    {
+                        <text>!</text>
+                    }
+                </span>
+                @s.Title
+            </a>
+        }
+    </nav>
+    <div class="stack" style="gap:16px">
+        <partial name="_FlashMessages" />
+        <section class="sheet org-profile-sheet">
+            @foreach (var s in sections)
+            {
+                var ok = CustomerProfileCompletionRules.IsOrganisationSectionComplete(s.Key, p);
+                var isPartner = s.Key == "partner";
+                var partnerNa = isPartner && CustomerProfileCompletionRules.IsTechnologyPartnerSectionNotApplicable(p);
+                var editing = string.Equals(editSection, s.Key, StringComparison.OrdinalIgnoreCase);
+                <div class="osec @(editing ? "editing" : "")" id="@($"os-{s.Key}")" data-org-section="@s.Key">
+                    <div>
+                        <div class="row" style="gap:10px">
+                            <h2 class="h3" id="@($"os-{s.Key}-title")">@s.Title</h2>
+                            @if (isPartner)
+                            {
+                                <span class="opt">Optional</span>
+                                @if (partnerNa)
+                                {
+                                    <span class="tag">Not applicable</span>
+                                }
+                            }
+                        </div>
+                        <p class="small muted osec-desc">@s.Desc</p>
+                    </div>
+                    <div>
+                        @* site.js opens the form in place; the link is the no-script fallback (reloads with ?edit=). *@
+                        <a asp-controller="CustomerProfile" asp-action="Index" asp-route-edit="@s.Key"
+                           asp-fragment="@($"os-{s.Key}")"
+                           class="btn quiet sm osec-edit"
+                           data-org-edit="@s.Key"
+                           aria-expanded="@(editing ? "true" : "false")"
+                           aria-controls="@($"os-{s.Key}-form")"
+                           aria-label="@($"{(ok || isPartner ? "Edit" : "Add details")} — {s.Title}")"
+                           hidden="@(editing ? "hidden" : null)">
+                            <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+                            @(ok || isPartner ? "Edit" : "Add details")
+                        </a>
+                    </div>
+                    <div class="ob">
+                        <dl class="dl" data-org-view hidden="@(editing ? "hidden" : null)">
+                            @foreach (var (label, valueHtml) in s.Rows)
+                            {
+                                <dt>@label</dt>
+                                <dd>@Html.Raw(valueHtml)</dd>
+                            }
+                        </dl>
+                        <div id="@($"os-{s.Key}-form")" data-org-form hidden="@(editing ? null : "hidden")">
+                            @{ ViewData["OrgEditSection"] = s.Key; }
+                            <partial name="_OrganisationProfileSectionForm" model="p" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
+</div>

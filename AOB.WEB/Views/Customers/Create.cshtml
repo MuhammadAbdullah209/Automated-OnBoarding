@@ -1,0 +1,46 @@
+@model AOB.WEB.ViewModels.Customers.CreateCustomerViewModel
+@{
+    ViewData["Title"] = "Add customer";
+    ViewData["Crumbs"] = "Customers / Add customer";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-action="Index">Customers</a><span class="crumb-sep" aria-hidden="true">›</span><span>Add customer</span>
+            </nav>
+            <h1 class="h1">Add customer</h1>
+            <p class="lede" style="margin-top:4px">Create a customer managed by your partner account. You can add their organisation details and projects next.</p>
+        </div>
+    </div>
+
+    <div class="page-stack form-page">
+        <form asp-action="Create" method="post" class="sheet sheet-form" novalidate>
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3">Customer details</h2>
+                </div>
+            </div>
+            <div class="sheet-b">
+                <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+                <div class="field">
+                    <label asp-for="CompanyName" class="field-label req"></label>
+                    <div class="hint">The customer's registered company name.</div>
+                    <input asp-for="CompanyName" class="tinput" autocomplete="organization" />
+                    <span asp-validation-for="CompanyName"></span>
+                </div>
+            </div>
+            <div class="sheet-f">
+                <a asp-action="Index" class="btn btn-quiet">Cancel</a>
+                <span class="spacer"></span>
+                <button type="submit" class="btn btn-primary">Add customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

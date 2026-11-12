@@ -1,0 +1,232 @@
+@model IReadOnlyList<AOB.BAL.DTOs.Documents.DocumentChecklistItemDto>
+@using System.Globalization
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
+    ViewData["Crumbs"] = "Profile / Documents";
+    var isCustomer = User.IsInRole("Customer");
+
+    static string FormatFileSize(long? bytes)
+    {
+        if (bytes is null or <= 0) return "";
+        if (bytes > 1048576) return (bytes.Value / 1048576.0).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
+        return Math.Max(1, bytes.Value / 1024).ToString(CultureInfo.InvariantCulture) + " KB";
+    }
+
+    static string FormatDocDate(DateTimeOffset when)
+        => when.ToString("d MMM yyyy", CultureInfo.GetCultureInfo("en-GB"));
+    var hasRequired = Model.Any(d => d.IsRequired);
+    var requiredMissing = Model.Count(d => d.IsRequired && !d.IsUploaded);
+
+    // The same limits the upload enforces (CustomerDocumentService, "FileStorage" in appsettings.json).
+    var maxFileSizeMb = Configuration.GetValue("FileStorage:MaxFileSizeMB", 10);
+    var acceptedTypes = (Configuration.GetSection("FileStorage:AllowedExtensions").Get<string[]>()
+            ?? new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".png", ".jpg", ".jpeg" })
+        .Select(e => e.TrimStart('.').ToUpperInvariant())
+        .Select(e => e == "JPEG" ? "JPG" : e)
+        .Distinct()
+        .ToList();
+    var acceptedText = acceptedTypes.Count > 1
+        ? string.Join(", ", acceptedTypes.Take(acceptedTypes.Count - 1)) + " or " + acceptedTypes[^1]
+        : acceptedTypes.FirstOrDefault() ?? "";
+}
+
+@if (isCustomer)
+{
+    <partial name="_OrganisationBand" />
+    <div class="wrap stack" style="padding-block:24px 64px;gap:16px">
+        <partial name="_FlashMessages" />
+        <div class="note plain" role="status">
+            <span class="ni" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            </span>
+            <div class="nd">
+                Upload these to help PCI Pal review your projects faster. You can submit a project before everything is uploaded.
+                Accepted: @acceptedText, up to @maxFileSizeMb MB each.
+            </div>
+        </div>
+        @if (Model.Count == 0)
+        {
+            <section class="sheet"><div class="sheet-b"><p class="muted mb-0">No documents are requested at the moment.</p></div></section>
+        }
+        else
+        {
+            <section class="sheet">
+                @foreach (var item in Model)
+                {
+                    <div class="doc-row">
+                        <span class="doc-ic @(item.IsUploaded ? "ok" : "pending")" aria-hidden="true">
+                            @if (item.IsUploaded)
+                            {
+                                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                            }
+                            else
+                            {
+                                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <path d="M14 2v6h6" />
+                                    <path d="M8 13h8" />
+                                    <path d="M8 17h5" />
+                                </svg>
+                            }
+                        </span>
+                        <div class="doc-body">
+                            <div class="doc-head">
+                                <span class="doc-title">@item.Name</span>
+                                @if (!item.IsRequired) { <span class="opt">Optional</span> }
+                                <span class="tag @(item.IsUploaded ? "ok" : "")">@(item.IsUploaded ? "Uploaded" : "Not uploaded")</span>
+                            </div>
+                            <p class="doc-meta">
+                                @if (item.IsUploaded)
+                                {
+                                    var sizeLabel = FormatFileSize(item.FileSizeBytes);
+                                    <span class="mono">@item.FileName</span>@if (!string.IsNullOrEmpty(sizeLabel)) {<text> · @sizeLabel</text>}<text> · @FormatDocDate(item.UploadedAt!.Value)</text>
+                                }
+                                else
+                                {
+                                    @item.Description
+                                }
+                            </p>
+                        </div>
+                        <div class="row dact" style="gap:6px">
+                            @if (item.IsUploaded)
+                            {
+                                <form asp-action="Upload" method="post" enctype="multipart/form-data" class="doc-upload-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="documentTypeId" value="@item.DocumentTypeId" />
+                                    <label class="btn btn-sm btn-primary doc-upload-btn">
+                                        Replace
+                                        <input type="file" name="file" class="sr-only" required onchange="this.form.requestSubmit()" aria-label="Replace @item.Name" />
+                                    </label>
+                                </form>
+                                <form asp-action="Remove" method="post" class="doc-upload-form"
+                                      data-confirm-title="Remove this file?"
+                                      data-confirm="@($"Remove {item.FileName} from {item.Name}? You can upload another at any time.")"
+                                      data-confirm-ok="Remove file">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="documentTypeId" value="@item.DocumentTypeId" />
+                                    <button type="submit" class="btn btn-sm btn-secondary-accent">Remove</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="Upload" method="post" enctype="multipart/form-data" class="doc-upload-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="documentTypeId" value="@item.DocumentTypeId" />
+                                    <label class="btn btn-sm btn-primary doc-upload-btn">
+                                        <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                                        Upload
+                                        <input type="file" name="file" class="sr-only" required onchange="this.form.requestSubmit()" aria-label="Upload @item.Name" />
+                                    </label>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+                @* <div class="sheet-f small muted">
+                     Files are scanned before PCI Pal reviews them.
+                </div> *@
+            </section>
+        }
+    </div>
+}
+else
+{
+    <div class="step-page project-case-page customer-profile-page customer-documents-page">
+        <div class="page-head customer-profile-head">
+            <div>
+                <h1>Documents &amp; evidence</h1>
+                <p>
+                    @if (hasRequired)
+                    {
+                        @:Upload the documents marked required to finish onboarding. You can return here anytime to add or replace files.
+                    }
+                    else
+                    {
+                        @:Upload any documents or evidence you would like to provide. All uploads are optional and can be added later.
+                    }
+                </p>
+            </div>
+            @if (hasRequired)
+            {
+                <span class="badge badge-navy customer-documents-badge">
+                    <span class="bd"></span>@requiredMissing required remaining
+                </span>
+            }
+            else
+            {
+                <span class="badge badge-gray customer-documents-badge"><span class="bd"></span>All optional</span>
+            }
+        </div>
+
+        <div class="case-layout customer-profile-layout">
+            <div class="case-main">
+                <div class="card">
+                    <div class="card-pad">
+                        <partial name="_FlashMessages" />
+
+                        @if (Model.Count == 0)
+                        {
+                            <p class="text-muted mb-0">No documents are requested at the moment.</p>
+                        }
+                        else
+                        {
+                            <ul class="doc-checklist" aria-label="Document checklist">
+                                @foreach (var item in Model)
+                                {
+                                    <li class="doc-checklist-item">
+                                        <div class="doc-checklist-head">
+                                            <div class="doc-checklist-main">
+                                                <div class="doc-checklist-title-row">
+                                                    <strong>@item.Name</strong>
+                                                    @if (item.IsRequired)
+                                                    {
+                                                        <span class="badge text-bg-warning">Required</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge text-bg-light border">Optional</span>
+                                                    }
+                                                </div>
+                                                @if (!string.IsNullOrWhiteSpace(item.Description))
+                                                {
+                                                    <p class="doc-checklist-desc">@item.Description</p>
+                                                }
+                                                @if (item.IsUploaded)
+                                                {
+                                                    <p class="doc-checklist-meta">
+                                                        Uploaded @item.UploadedAt!.Value.ToString("d MMM yyyy") ·
+                                                        <a asp-action="Download" asp-route-documentTypeId="@item.DocumentTypeId">@item.FileName</a>
+                                                    </p>
+                                                }
+                                            </div>
+                                            <span class="badge @(item.IsUploaded ? "text-bg-success" : "text-bg-danger")">
+                                                @(item.IsUploaded ? "✓ Uploaded" : "✕ Missing")
+                                            </span>
+                                        </div>
+                                        <form asp-action="Upload" method="post" enctype="multipart/form-data" class="doc-checklist-upload">
+                                            <input type="hidden" name="documentTypeId" value="@item.DocumentTypeId" />
+                                            <input type="file" name="file" class="tinput doc-checklist-file" required aria-label="Choose file for @item.Name" />
+                                            <button type="submit" class="btn btn-outline-primary btn-sm">@(item.IsUploaded ? "Replace" : "Upload")</button>
+                                        </form>
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        @if (!hasRequired)
+                        {
+                            <div class="note" role="status">
+                                <div><p class="nd"><strong>Documents are optional</strong> — you can continue to your projects without uploading anything here.</p></div>
+                            </div>
+                        }
+
+                        <div class="form-footer profile-form-footer">
+                            <a asp-controller="CustomerProfile" asp-action="Index" class="btn btn-link form-footer-back">&lt; Back to profile</a>
+                            <a asp-controller="Projects" asp-action="Index" class="btn btn-primary">Continue to projects</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

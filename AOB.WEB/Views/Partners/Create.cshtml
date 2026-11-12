@@ -1,0 +1,26 @@
+@model AOB.WEB.ViewModels.Admin.CreateAccountViewModel
+@{
+    ViewData["Title"] = "Add partner";
+    ViewData["Crumbs"] = "Partners / Add partner";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-action="Index">Partners</a><span class="crumb-sep" aria-hidden="true">›</span><span>Add partner</span>
+            </nav>
+            <h1 class="h1">Add partner</h1>
+            <p class="lede" style="margin-top:4px">Create a partner organisation and its sign-in. Share the initial password with them securely.</p>
+        </div>
+    </div>
+
+    <div class="page-stack form-page">
+        <partial name="_CreateAccountForm" model="Model" view-data='new ViewDataDictionary(ViewData) { ["NameLabel"] = "Partner name", ["FormTitle"] = "Partner details", ["SubmitLabel"] = "Add partner" }' />
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/password-policy.js" asp-append-version="true"></script>
+}

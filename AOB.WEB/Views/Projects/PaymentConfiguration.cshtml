@@ -1,0 +1,257 @@
+@model AOB.BAL.DTOs.Projects.ProjectPaymentConfigurationDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@using AOB.WEB.Helpers
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = "Payment Configuration";
+    var project = (ProjectOverviewDto)ViewData["Project"]!;
+    ViewData["FlowSubtitle"] = $"Payment configuration · {ProjectOptions.ProjectStatusLabels[project.Status]}";
+    ViewData["DocSectionNo"] = "03";
+    ViewData["DocTitle"] = "Payment configuration";
+    ViewData["DocLede"] = "Your payment provider, accepted cards, currencies and how card numbers are shown afterwards.";
+    ViewData["FlowBackAction"] = "TechnicalEnvironment";
+    ViewData["FlowBackLabel"] = "Technical environment";
+    var gateways = (IReadOnlyList<PaymentGatewayDto>)ViewData["Gateways"]!;
+}
+
+<form asp-action="PaymentConfiguration" asp-route-id="@project.Id" method="post" class="doc rise project-flow-form">
+    <partial name="_ProjectDocHeader" />
+    <div class="ctxwrap">
+        <div class="note ctxnote">
+            <span class="ni" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+            </span>
+            <div>
+                <div class="nt">What this section covers</div>
+                <div class="nd">Your payment provider and card settings. The provider you pick drives the fields in Adaptive configuration.</div>
+            </div>
+        </div>
+    </div>
+    <div class="doc-paper project-flow-primary">
+        <div asp-validation-summary="ModelOnly" class="form-errors" role="alert"></div>
+
+        <section class="flow-section flow-section--first qrow">
+            <h5 class="flow-section-title req qt">Payment provider</h5>
+            <p class="flow-section-hint qd">Your payment service provider (PSP) or gateway. It decides the data fields in Adaptive configuration.</p>
+            <div class="qctl">
+                <select asp-for="PaymentGatewayId" asp-items="new SelectList(gateways, nameof(PaymentGatewayDto.Id), nameof(PaymentGatewayDto.Name))" class="form-select">
+                    <option value="">Select a gateway</option>
+                </select>
+                <span asp-validation-for="PaymentGatewayId" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title qt">
+                Payment attempts per session
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">The most attempts a customer gets in one session: 1 to 5, or unlimited.</p>
+            <div class="qctl">
+                <select asp-for="MaxPaymentAttempts" class="form-select flow-input-narrow"
+                        asp-items="@ProjectOptions.PaymentAttemptOptions.Select(n => new SelectListItem(ProjectOptions.FormatMaxPaymentAttempts(n), n.ToString()))">
+                    <option value="">Select a number</option>
+                </select>
+                <span asp-validation-for="MaxPaymentAttempts" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title req qt">Accepted cards</h5>
+            <p class="flow-section-hint qd">Every card type your business accepts.</p>
+            <div class="qctl">
+                @Html.EnumMultiSelect("SupportedCards", ProjectOptions.CardSchemeLabels, Model.SupportedCards, placeholder: "Select card types")
+                <span asp-validation-for="SupportedCards" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title qt">
+                Merchant accounts
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">Total accounts across all providers, and the bank that processes your payments.</p>
+            <div class="qctl">
+                <div class="grid2 flow-grid2">
+                    <div class="field">
+                        <label asp-for="TotalMerchantAccounts" class="form-label field-label">Total merchant accounts</label>
+                        <input asp-for="TotalMerchantAccounts" class="form-control" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="e.g. 1" />
+                        <span asp-validation-for="TotalMerchantAccounts" class="text-danger"></span>
+                    </div>
+                    <div class="field">
+                        <label asp-for="CustomerAcquirer" class="form-label field-label">Acquirer</label>
+                        <input asp-for="CustomerAcquirer" class="form-control" placeholder="e.g. Barclays" />
+                        <span asp-validation-for="CustomerAcquirer" class="text-danger"></span>
+                    </div>
+                </div>
+                <div id="merchantIdentification" class="reveal-block @(Model.TotalMerchantAccounts is > 1 ? "" : "is-hidden")">
+                    <label asp-for="MerchantIdentification" class="form-label req">How PCIPAL will identify between the merchants</label>
+                    <select asp-for="MerchantIdentification" asp-items="Html.EnumSelectItems(ProjectOptions.MerchantIdentificationLabels)" class="form-select">
+                        <option value="">Select an answer</option>
+                    </select>
+                    <span asp-validation-for="MerchantIdentification" class="text-danger"></span>
+                    <div id="merchantIdentificationOther" class="reveal-block @(Model.MerchantIdentification == MerchantIdentification.Other ? "" : "is-hidden")">
+                        <label asp-for="MerchantIdentificationOther" class="form-label req"></label>
+                        <textarea asp-for="MerchantIdentificationOther" class="form-control" rows="3"
+                                  placeholder="Explain how the merchant accounts should be told apart"></textarea>
+                        <span asp-validation-for="MerchantIdentificationOther" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title qt">
+                Payment types
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">Transaction types you need.</p>
+            <div class="qctl">
+                @Html.EnumMultiSelect("PaymentTypes", ProjectOptions.PaymentTypeLabels, Model.PaymentTypes, placeholder: "Select payment types")
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title req qt">Currencies</h5>
+            <p class="flow-section-hint qd">Currencies your customers pay in.</p>
+            <div class="qctl">
+                @Html.EnumMultiSelect("Currencies", ProjectOptions.CurrencyLabels, Model.Currencies, placeholder: "Select currencies")
+                <span asp-validation-for="Currencies" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title qt">
+                Card number masking
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">How card numbers appear in your systems after a payment.</p>
+            <div class="qctl">
+                @Html.EnumCardRadios("CardNumberMasking", ProjectOptions.CardNumberMaskingLabels, Model.CardNumberMasking, previews: ProjectFormMetadata.CardMaskingPreviews, layout: "grid-3-proto")
+                @{
+                    ViewData["CardNumberMasking"] = Model.CardNumberMasking;
+                }
+                <partial name="_PaymentCardMaskPreview" />
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title qt">
+                SMS provider
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">Used if you send payment links by text message.</p>
+            <div class="qctl">
+                @Html.EnumCardRadios("SmsServiceProvider", ProjectOptions.SmsServiceProviderLabels, Model.SmsServiceProvider, layout: "grid-2-proto")
+                <div id="otherSms" class="reveal-block @(Model.SmsServiceProvider == SmsServiceProvider.Other ? "" : "is-hidden")">
+                    <label asp-for="OtherSmsProvider" class="form-label"></label>
+                    <select asp-for="OtherSmsProvider" asp-items="Html.EnumSelectItems(ProjectOptions.OtherSmsProviderLabels)" class="form-select">
+                        <option value="">Select a provider</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title qt">
+                Email provider
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">Used if you send payment links by email.</p>
+            <div class="qctl">
+                @Html.EnumCardRadios("EmailServiceProvider", ProjectOptions.EmailServiceProviderLabels, Model.EmailServiceProvider, layout: "grid-2-proto")
+                <div id="otherEmail" class="reveal-block @(Model.EmailServiceProvider == EmailServiceProvider.Other ? "" : "is-hidden")">
+                    <label asp-for="OtherEmailProvider" class="form-label"></label>
+                    <select asp-for="OtherEmailProvider" asp-items="Html.EnumSelectItems(ProjectOptions.OtherEmailProviderLabels)" class="form-select">
+                        <option value="">Select a provider</option>
+                    </select>
+                    <span asp-validation-for="OtherEmailProvider" class="text-danger"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title qt">
+                Testing
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">Helps us plan integration testing.</p>
+            <div class="qctl">
+                <label class="option-card flow-tile-check">
+                    <input asp-for="HasSandboxEnvironment" type="checkbox" />
+                    <span class="option-card-body">
+                        <span class="option-card-check" aria-hidden="true"></span>
+                        <span class="option-card-text">
+                            <span class="option-card-title">A test or sandbox environment is available</span>
+                        </span>
+                    </span>
+                </label>
+            </div>
+        </section>
+    </div>
+    <partial name="_ProjectFlowActionBar" />
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelectorAll('input[type="number"][min]').forEach(function (input) {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') e.preventDefault();
+            });
+        });
+
+        const maskPreviews = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ProjectFormMetadata.CardMaskingPreviews.ToDictionary(
+            kv => kv.Key.ToString(), kv => kv.Value)));
+
+        function syncMaskPreview() {
+            const picked = document.querySelector('input[name="CardNumberMasking"]:checked');
+            const previewEl = document.querySelector('[data-mask-preview]');
+            const labelEl = document.querySelector('[data-mask-label]');
+            if (!previewEl || !labelEl) return;
+            if (!picked) {
+                previewEl.textContent = '4929 1804 2215 6411';
+                labelEl.textContent = 'Choose a format';
+                return;
+            }
+            previewEl.textContent = maskPreviews[picked.value] || picked.value;
+            labelEl.textContent = 'Masked in your CRM';
+        }
+        document.querySelectorAll('input[name="CardNumberMasking"]').forEach(function (r) {
+            r.addEventListener('change', syncMaskPreview);
+        });
+        syncMaskPreview();
+
+        function bindRadio(groupName, targetId, showValue) {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            document.querySelectorAll('input[name="' + groupName + '"]').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    target.classList.toggle('is-hidden', !(radio.checked && radio.value === showValue));
+                });
+            });
+        }
+        bindRadio('SmsServiceProvider', 'otherSms', 'Other');
+        bindRadio('EmailServiceProvider', 'otherEmail', 'Other');
+
+        (function () {
+            const count = document.getElementById('TotalMerchantAccounts');
+            const group = document.getElementById('merchantIdentification');
+            const choice = document.getElementById('MerchantIdentification');
+            const other = document.getElementById('merchantIdentificationOther');
+            if (!count || !group) return;
+            function update() {
+                group.classList.toggle('is-hidden', parseInt(count.value, 10) <= 1 || !count.value);
+                if (other && choice) {
+                    other.classList.toggle('is-hidden', choice.value !== 'Other');
+                }
+            }
+            count.addEventListener('input', update);
+            choice?.addEventListener('change', update);
+            update();
+        })();
+    </script>
+}

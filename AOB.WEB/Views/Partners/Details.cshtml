@@ -1,0 +1,51 @@
+@model AOB.BAL.DTOs.Partners.PartnerSummaryDto
+@{
+    ViewData["Title"] = Model.Name;
+    ViewData["Crumbs"] = $"Partners / {Model.Name}";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-action="Index">Partners</a><span class="crumb-sep" aria-hidden="true">›</span><span>@Model.Name</span>
+            </nav>
+            <h1 class="h1">@Model.Name</h1>
+            <p class="lede" style="margin-top:4px">Partner details. Its customers are on the Customers page.</p>
+        </div>
+        <div class="ph-actions">
+            @if (User.IsInRole("InternalUser"))
+            {
+                <partial name="_PartnerActiveToggle" model="Model" />
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-quiet">
+                    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
+                    Edit
+                </a>
+            }
+            <a asp-controller="Customers" asp-action="Index" asp-route-partnerId="@Model.Id" class="btn btn-primary">
+                Go to customers
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </a>
+        </div>
+    </div>
+
+    <div class="page-stack">
+        <partial name="_FlashMessages" />
+
+        <section class="sheet">
+            <div class="sheet-h">
+                <div class="sheet-ttl"><h2 class="h3">Partner</h2></div>
+                <span class="tag @(Model.IsActive ? "ok" : "")">@(Model.IsActive ? "Active" : "Inactive")</span>
+            </div>
+            <div class="sheet-b">
+                <dl class="dl">
+                    <dt>Partner name</dt><dd>@Model.Name</dd>
+                    <dt>Sign-in email</dt><dd>@Model.Email</dd>
+                    <dt>Status</dt><dd>@(Model.IsActive ? "Active — can sign in" : "Inactive — cannot sign in")</dd>
+                    <dt>Customers</dt><dd class="num">@Model.CustomerCount</dd>
+                    <dt>Created</dt><dd>@Model.CreatedAt.ToString("d MMM yyyy")</dd>
+                </dl>
+            </div>
+        </section>
+    </div>
+</div>

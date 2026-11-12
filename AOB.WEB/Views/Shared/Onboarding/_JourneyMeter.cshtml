@@ -1,0 +1,23 @@
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.Common.Helpers
+@model (ProjectStatus Status, ProjectStep Step, InformationRequestStatus? InformationRequest, DateTimeOffset CreatedAt, bool Mini, BuildType? BuildType, bool HasAccountStep, bool AwaitingUsersCsv)
+@{
+    var segments = ProjectOnboardingPresentation.Journey(
+        Model.Status, Model.Step, Model.InformationRequest, Model.CreatedAt, buildType: Model.BuildType,
+        hasAccountStep: Model.HasAccountStep, awaitingUsersCsv: Model.AwaitingUsersCsv);
+    var aria = string.Join(", ", segments.Select(s =>
+        $"{s.Label} {(s.StateClass is "done" or "live" ? "done" : !string.IsNullOrEmpty(s.StateClass) ? "current" : "not started")}"));
+}
+<div class="jm @(Model.Mini ? "mini" : "")" style="--jm-n:@segments.Count" role="img" aria-label="Journey: @aria">
+    @foreach (var s in segments)
+    {
+        <div class="seg @(s.StateClass)">
+            <span class="bar"></span>
+            @if (!Model.Mini)
+            {
+                <span class="lab">@s.Label</span>
+                <span class="sub">@(string.IsNullOrEmpty(s.Subtext) ? "\u00a0" : s.Subtext)</span>
+            }
+        </div>
+    }
+</div>

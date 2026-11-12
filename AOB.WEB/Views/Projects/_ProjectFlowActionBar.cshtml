@@ -1,0 +1,30 @@
+@using AOB.BAL.DTOs.Projects
+@{
+    var project = ViewData["Project"] as ProjectOverviewDto;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var backAction = ViewData["FlowBackAction"] as string ?? "Details";
+    var backLabel = ViewData["FlowBackLabel"] as string ?? "Overview";
+    var continueLabel = ViewData["FlowContinueLabel"] as string ?? "Save and continue";
+    var submitted = project?.IsSubmitted == true;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+}
+<div class="actionbar actionbar--dock">
+    @if (actingCustomerId is Guid customerId)
+    {
+        <a asp-controller="Projects" asp-action="@backAction" asp-route-customerId="@customerId" asp-route-id="@project!.Id" class="btn btn-text">&lt; @backLabel</a>
+    }
+    else
+    {
+        <a asp-action="@backAction" asp-route-id="@project!.Id" class="btn btn-text">&lt; @backLabel</a>
+    }
+    <span class="spacer"></span>
+    @if (!submitted && !readOnlyStaff)
+    {
+        <button type="submit" name="saveExit" value="true" class="btn btn-quiet">Save and exit</button>
+        <button type="submit" class="btn btn-primary">@continueLabel</button>
+    }
+    else if (readOnlyStaff)
+    {
+        <span class="small muted">Internal view — read only</span>
+    }
+</div>

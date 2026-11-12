@@ -1,0 +1,24 @@
+@model (Guid ProjectId, Guid? CustomerId, string ButtonClass)
+@{
+    var btnClass = string.IsNullOrWhiteSpace(Model.ButtonClass) ? "btn btn-primary prov-launch-btn" : Model.ButtonClass;
+}
+@if (Model.CustomerId is Guid cid)
+{
+    <form asp-controller="Projects" asp-action="FlowLaunch" asp-route-customerId="@cid" asp-route-id="@Model.ProjectId" method="post" class="prov-launch-form">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="@btnClass">
+            <svg class="i xs" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            Launch payment flow
+        </button>
+    </form>
+}
+else
+{
+    <form asp-action="FlowLaunch" asp-route-id="@Model.ProjectId" method="post" class="prov-launch-form">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="@btnClass">
+            <svg class="i xs" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            Launch payment flow
+        </button>
+    </form>
+}

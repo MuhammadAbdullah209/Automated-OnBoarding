@@ -1,0 +1,25 @@
+@model AOB.WEB.ViewModels.Auth.ResetPasswordViewModel
+
+<form asp-controller="Auth" asp-action="ChangeTemporaryPassword" method="post" class="stack" data-auth-form novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+    <input asp-for="Email" type="hidden" />
+    <input asp-for="ResetToken" type="hidden" />
+
+    <div class="field">
+        <label asp-for="NewPassword" class="field-label req"></label>
+        <input asp-for="NewPassword" class="tinput" autocomplete="new-password" aria-describedby="NewPassword-rules" />
+        <span asp-validation-for="NewPassword"></span>
+        <partial name="_PasswordChecklist" model="@Html.IdFor(m => m.NewPassword)" />
+    </div>
+    <div class="field">
+        <label asp-for="ConfirmPassword" class="field-label req"></label>
+        <input asp-for="ConfirmPassword" class="tinput" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword"></span>
+        <div class="pw-match" data-password-match data-for="@Html.IdFor(m => m.ConfirmPassword)" data-compare="@Html.IdFor(m => m.NewPassword)" aria-live="polite"></div>
+    </div>
+
+    <div class="auth-actions">
+        <button type="submit" class="btn btn-primary btn-lg btn-block"><span class="spinner" aria-hidden="true"></span>Update password</button>
+    </div>
+</form>

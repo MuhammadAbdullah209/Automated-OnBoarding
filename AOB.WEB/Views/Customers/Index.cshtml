@@ -1,0 +1,258 @@
+@model AOB.WEB.ViewModels.Customers.CustomersIndexViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@{
+    ViewData["Title"] = "Customers";
+    ViewData["Crumbs"] = "Customers";
+    ViewData["FullBleed"] = true;
+
+    static string DisplayName(AOB.BAL.DTOs.Customers.CustomerSummaryDto c)
+        => string.IsNullOrWhiteSpace(c.CompanyName) ? "Unnamed customer" : c.CompanyName!;
+
+    static string StatusTag(CustomerStatus status) => status switch
+    {
+        CustomerStatus.Onboarded => "ok",
+        CustomerStatus.Disabled => "",
+        _ => "blue"
+    };
+
+    // Staff split the list by how the customer joined; partners by whether the customer can sign in.
+    var tabs = Model.IsAdminList
+        ? new (string Key, string Label, bool? Direct, bool? Login)[]
+        {
+            ("all", "All", null, Model.HasLogin),
+            ("direct", "Direct signup", true, Model.HasLogin),
+            ("partner", "Partner-managed", false, Model.HasLogin)
+        }
+        : new (string Key, string Label, bool? Direct, bool? Login)[]
+        {
+            ("all", "All", null, null),
+            ("login", "With login", null, true),
+            ("nologin", "Without login", null, false)
+        };
+    bool TabSelected((string Key, string Label, bool? Direct, bool? Login) t)
+        => Model.IsAdminList ? Model.IsDirect == t.Direct : Model.HasLogin == t.Login;
+
+    Dictionary<string, string?> ListRoute(bool? isDirect, bool? hasLogin, int? page = null) => new()
+    {
+        ["q"] = Model.Search,
+        ["isDirect"] = isDirect?.ToString().ToLowerInvariant(),
+        ["hasLogin"] = hasLogin?.ToString().ToLowerInvariant(),
+        ["partnerId"] = Model.PartnerId?.ToString(),
+        ["page"] = page is > 1 ? page.ToString() : null
+    };
+
+    var selectedPartner = Model.PartnerId is Guid pid ? Model.PartnerFilters.FirstOrDefault(p => p.Id == pid) : null;
+    var eyebrow = Model.IsAdminList
+        ? (selectedPartner?.Name ?? "All partners")
+        : "Your customers";
+    var hasAnyCustomers = Model.TabCounts.GetValueOrDefault("all", Model.Result.TotalCount) > 0;
+}
+
+<div class="wrap rise projects-band">
+    <div class="projects-ph">
+        <div class="ttl">
+            <div class="eyebrow">@eyebrow</div>
+            <h1 class="h1">Customers</h1>
+            <p class="lede">
+                @(Model.IsAdminList
+                    ? "Every customer across partners, how they joined and where their onboarding stands."
+                    : "The customers you onboard, whether they can sign in and where their onboarding stands.")
+            </p>
+        </div>
+        @if (!Model.IsAdminList)
+        {
+            <a asp-action="Create" class="btn btn-primary">
+                <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                Add customer
+            </a>
+        }
+    </div>
+    <div class="views" role="tablist" aria-label="Customer views">
+        @foreach (var tab in tabs)
+        {
+            <a role="tab" asp-action="Index" asp-all-route-data="@ListRoute(tab.Direct, tab.Login)"
+               aria-selected="@(TabSelected(tab) ? "true" : "false")">
+                @tab.Label
+                <span class="c">@Model.TabCounts.GetValueOrDefault(tab.Key)</span>
+            </a>
+        }
+    </div>
+</div>
+
+<div class="wrap rise projects-page">
+    <partial name="_FlashMessages" />
+
+    @if (hasAnyCustomers || Model.HasActiveFilter)
+    {
+        <form asp-action="Index" method="get" class="filters @(Model.IsAdminList ? "filters--list3" : "filters--list1")" role="search">
+            @if (Model.IsAdminList && Model.IsDirect is bool directFilter)
+            {
+                <input type="hidden" name="isDirect" value="@directFilter.ToString().ToLowerInvariant()" />
+            }
+            @if (!Model.IsAdminList && Model.HasLogin is bool loginTab)
+            {
+                <input type="hidden" name="hasLogin" value="@loginTab.ToString().ToLowerInvariant()" />
+            }
+            <div class="field search-f">
+                <label class="label" for="customer-search">Search</label>
+                <div class="search">
+                    <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2" /><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                    <input id="customer-search" class="input tinput" type="search" name="q" value="@Model.Search" placeholder="Company or contact" autocomplete="off" />
+                </div>
+            </div>
+            @if (Model.IsAdminList)
+            {
+                <div class="field">
+                    <label class="label" for="partner-filter">Partner</label>
+                    <select id="partner-filter" class="input select tinput" name="partnerId" onchange="this.form.requestSubmit()">
+                        <option value="">All partners</option>
+                        @foreach (var p in Model.PartnerFilters)
+                        {
+                            <option value="@p.Id" selected="@(Model.PartnerId == p.Id ? "selected" : null)">@p.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label" for="login-filter">Login</label>
+                    <select id="login-filter" class="input select tinput" name="hasLogin" onchange="this.form.requestSubmit()">
+                        <option value="">With or without</option>
+                        <option value="true" selected="@(Model.HasLogin == true ? "selected" : null)">With login</option>
+                        <option value="false" selected="@(Model.HasLogin == false ? "selected" : null)">Without login</option>
+                    </select>
+                </div>
+            }
+            <div class="filters-clear">
+                @if (Model.HasActiveFilter)
+                {
+                    <a asp-action="Index" class="btn btn-text">Clear filters</a>
+                }
+            </div>
+        </form>
+    }
+
+    <section class="sheet projects-sheet" style="overflow:hidden">
+        @if (Model.Result.Items.Count == 0)
+        {
+            <div class="empty">
+                <div class="art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                @if (Model.HasActiveFilter)
+                {
+                    <h3 class="h3">No customers match</h3>
+                    <p class="muted">Try another tab, change the search, or clear the filters.</p>
+                    <a asp-action="Index" class="btn btn-quiet btn-sm">Clear filters</a>
+                }
+                else if (Model.IsAdminList)
+                {
+                    <h2 class="h2">No customers yet</h2>
+                    <p class="muted">Customers from partners and direct signup will appear here.</p>
+                }
+                else
+                {
+                    <h2 class="h2">No customers yet</h2>
+                    <p class="muted">Add a customer to start onboarding them.</p>
+                    <a asp-action="Create" class="btn btn-primary btn-sm">Add customer</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="ptable-wrap">
+                <table class="ptable projects-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Company</th>
+                            @if (Model.IsAdminList)
+                            {
+                                <th scope="col">Partner</th>
+                            }
+                            <th scope="col">Primary contact</th>
+                            <th scope="col">Projects</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Login</th>
+                            <th scope="col">Created</th>
+                            <th scope="col"><span class="sr-only">Action</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.Result.Items)
+                        {
+                            <tr onclick="window.location='@Url.Action("Details", new { id = c.Id })'">
+                                <td>
+                                    <div class="strong">@DisplayName(c)</div>
+                                </td>
+                                @if (Model.IsAdminList)
+                                {
+                                    <td class="small">
+                                        @if (!string.IsNullOrWhiteSpace(c.PartnerName))
+                                        {
+                                            <a asp-controller="Partners" asp-action="Details" asp-route-id="@c.PartnerId" class="link" onclick="event.stopPropagation()">@c.PartnerName</a>
+                                        }
+                                        else
+                                        {
+                                            @:—
+                                        }
+                                    </td>
+                                }
+                                <td class="small">@(string.IsNullOrWhiteSpace(c.PrimaryContactFullName) ? "—" : c.PrimaryContactFullName)</td>
+                                <td class="num small">@c.ProjectCount</td>
+                                <td><span class="tag @StatusTag(c.Status)">@ProjectOptions.CustomerStatusLabels[c.Status]</span></td>
+                                <td><span class="tag @(c.HasLogin ? "ok" : "")">@(c.HasLogin ? "Has login" : "No login")</span></td>
+                                <td class="num small" style="white-space:nowrap">@c.CreatedAt.ToString("d MMM yyyy")</td>
+                                <td style="text-align:right" onclick="event.stopPropagation()">
+                                    <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-sm btn-quiet">Open</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pcards ledger">
+                @foreach (var c in Model.Result.Items)
+                {
+                    <a class="lrow proj-row" asp-action="Details" asp-route-id="@c.Id">
+                        <span style="min-width:0">
+                            <span class="t" style="display:block">@DisplayName(c)</span>
+                            <span class="ref">@(Model.IsAdminList && !string.IsNullOrWhiteSpace(c.PartnerName) ? c.PartnerName + " · " : "")@c.ProjectCount @(c.ProjectCount == 1 ? "project" : "projects") · @c.CreatedAt.ToString("d MMM yyyy")</span>
+                        </span>
+                        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                        <span class="courtcell tag-row" style="grid-column:1/-1">
+                            <span class="tag @StatusTag(c.Status)">@ProjectOptions.CustomerStatusLabels[c.Status]</span>
+                            <span class="tag @(c.HasLogin ? "ok" : "")">@(c.HasLogin ? "Has login" : "No login")</span>
+                        </span>
+                    </a>
+                }
+            </div>
+
+            <div class="sheet-f">
+                <span class="small muted">
+                    Showing @Model.Result.FirstItemIndex–@Model.Result.LastItemIndex of @Model.Result.TotalCount @(Model.Result.TotalCount == 1 ? "customer" : "customers")
+                </span>
+                @if (Model.Result.TotalPages > 1)
+                {
+                    <span class="spacer"></span>
+                    <nav class="row wrap" style="gap:8px" aria-label="Customers pagination">
+                        @if (Model.Result.HasPreviousPage)
+                        {
+                            <a class="btn btn-quiet btn-sm" asp-action="Index" asp-all-route-data="@ListRoute(Model.IsDirect, Model.HasLogin, Model.Result.Page - 1)">Previous</a>
+                        }
+                        else
+                        {
+                            <span class="btn btn-quiet btn-sm" aria-disabled="true">Previous</span>
+                        }
+                        <span class="small muted">Page @Model.Result.Page of @Model.Result.TotalPages</span>
+                        @if (Model.Result.HasNextPage)
+                        {
+                            <a class="btn btn-quiet btn-sm" asp-action="Index" asp-all-route-data="@ListRoute(Model.IsDirect, Model.HasLogin, Model.Result.Page + 1)">Next</a>
+                        }
+                        else
+                        {
+                            <span class="btn btn-quiet btn-sm" aria-disabled="true">Next</span>
+                        }
+                    </nav>
+                }
+            </div>
+        }
+    </section>
+</div>

@@ -1,0 +1,126 @@
+@model AOB.WEB.ViewModels.Projects.SetupDocumentViewModel
+@{
+    // A stand-alone page that reproduces the Word "Setup Documentation Pack": three A4 pages, printed or saved as PDF.
+    Layout = null;
+    var doc = Model.Document;
+    var customerName = string.IsNullOrWhiteSpace(Model.Customer?.CompanyName) ? "Customer" : Model.Customer!.CompanyName!;
+
+    // Also the file name the browser suggests when the page is saved as PDF.
+    var title = $"PCI Pal - {doc.Region} {doc.Environment} - Setup Documentation Pack - {customerName}";
+
+    static string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    var sections = new[] { ("introduction", "Introduction"), ("endpoints", "Endpoint URLs"), ("tenant", "Tenant Details"), ("flow", "Flow Details") };
+    var endpoints = new[]
+    {
+        ("Authentication", doc.AuthenticationEndpoint),
+        ("Session", doc.SessionEndpoint),
+        ("Iframe URL", doc.IframeUrl)
+    };
+}
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@title</title>
+    <link rel="icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/css/sdp-document.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="sdp-actions">
+        <a class="sdp-btn" href="@Model.BackUrl">&larr; Back to project</a>
+        <button type="button" class="sdp-btn sdp-btn--primary" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <div class="sdp-pages">
+
+        @* ---------- Page 1: cover ---------- *@
+        <section class="sheet" aria-label="Cover">
+            <img class="sheet-logo" src="~/images/pcipal-logo.png" alt="PCI Pal" />
+            <div class="cover-spacer">
+                @for (var i = 0; i < 5; i++)
+                {
+                    <p class="title empty@(i == 0 ? " cover-first" : "")"></p>
+                }
+            </div>
+            <h1 class="title">Setup Documentation Pack</h1>
+            <p class="subtitle">@doc.Environment &ndash; @doc.Region</p>
+            <p class="empty"></p>
+            <p class="empty"></p>
+            <p class="empty"></p>
+            <p class="cover-text">@Model.GeneratedAt.ToString("d MMMM yyyy")</p>
+            <p class="cover-text empty"></p>
+            <p class="cover-text">Customer: @customerName</p>
+            <p class="cover-text">Version: 1.0</p>
+            <footer class="sheet-footer"><span class="classification">Confidential</span><span class="page-no">1</span></footer>
+        </section>
+
+        @* ---------- Page 2: table of contents ---------- *@
+        <section class="sheet" aria-label="Table of Contents">
+            <img class="sheet-logo" src="~/images/pcipal-logo.png" alt="" />
+            <h2 class="toc-heading">Table of Contents</h2>
+            <ol class="toc">
+                @for (var i = 0; i < sections.Length; i++)
+                {
+                    <li><a href="#@sections[i].Item1"><span class="toc-num">@(i + 1)</span><span>@sections[i].Item2</span><span class="toc-lead"></span><span>3</span></a></li>
+                }
+            </ol>
+            <footer class="sheet-footer"><span class="classification">Confidential</span><span class="page-no">2</span></footer>
+        </section>
+
+        @* ---------- Page 3: the setup details ---------- *@
+        <section class="sheet" aria-label="Setup details">
+            <img class="sheet-logo" src="~/images/pcipal-logo.png" alt="" />
+            <div class="sdp-content">
+                <h2 class="h1" id="introduction">Introduction</h2>
+                <p class="justify">This document is intended to give third parties information required about a specific tenant set up within the PCI Pal portal.&nbsp;This document should be read in conjunction with the <a class="doc-link" href="https://pcipal.stoplight.io/docs/PCIPALAPIGuide/2c70561f1bc42-authentication" target="_blank" rel="noopener noreferrer">API documentation</a></p>
+
+                <h2 class="h1" id="endpoints">Endpoint URLs</h2>
+                <table class="list6 endpoints">
+                    <thead><tr><th scope="col">Key</th><th scope="col">URL</th></tr></thead>
+                    <tbody>
+                        @foreach (var (label, url) in endpoints)
+                        {
+                            <tr><th scope="row">@label</th><td><a href="@url">@url</a></td></tr>
+                        }
+                    </tbody>
+                </table>
+
+                <h2 class="h1" id="tenant">Tenant Details</h2>
+                <table class="list6">
+                    <colgroup><col style="width:23.56%" /><col style="width:36.12%" /><col /></colgroup>
+                    <thead><tr><th scope="col">Key</th><th scope="col">Type</th><th scope="col">Description</th></tr></thead>
+                    <tbody>
+                        <tr><th scope="row">tenantname</th><td>@Or(doc.TenantName)</td><td>Unique name for this Tenant</td></tr>
+                        <tr><th scope="row">tenantId</th><td>@Or(doc.TenantId)</td><td>Unique ID for this Tenant</td></tr>
+                        <tr><th scope="row">username</th><td>@Or(doc.Username)</td><td>Unique value provided to identify the agent taking the payment.</td></tr>
+                        <tr><th scope="row">client_id</th><td>@Or(doc.ClientId)</td><td>Client id for application</td></tr>
+                        <tr><th scope="row">client_secret</th><td>To be provided via Secure Link</td><td>Client secret for application</td></tr>
+                        <tr><th scope="row">Client Secret Expiry</th><td>@doc.ClientSecretExpiry.ToString("dd/MM/yyyy")</td><td>The secret expires after 3 years. This will need to be renewed and changed</td></tr>
+                    </tbody>
+                </table>
+
+                <h2 class="h1" id="flow">Flow Details</h2>
+                <p><strong>Flow ID:</strong> @Or(doc.FlowId)</p>
+                <table class="list6 italic">
+                    <colgroup><col style="width:23.56%" /><col style="width:23.56%" /><col /></colgroup>
+                    <thead><tr class="caption-row"><th scope="col">Inputs Caption</th><th scope="col">Variable Name</th><th scope="col">Notes</th></tr></thead>
+                    <tbody>
+                        @foreach (var field in doc.InputFields)
+                        {
+                            <tr><th scope="row">@field.Caption</th><td>@field.VariableName</td><td>@field.Notes</td></tr>
+                        }
+                    </tbody>
+                </table>
+
+                <p class="no-spacing empty"></p>
+                <p class="no-spacing empty"></p>
+                <p class="no-spacing centre">[End of Document]</p>
+            </div>
+            <footer class="sheet-footer"><span class="classification">Confidential</span><span class="page-no">3</span></footer>
+        </section>
+    </div>
+</body>
+</html>

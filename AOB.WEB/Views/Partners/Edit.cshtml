@@ -1,0 +1,55 @@
+@model AOB.WEB.ViewModels.Partners.EditPartnerViewModel
+@{
+    var partnerId = (Guid)ViewData["PartnerId"]!;
+    ViewData["Title"] = "Edit partner";
+    ViewData["Crumbs"] = "Partners / Edit partner";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-action="Index">Partners</a><span class="crumb-sep" aria-hidden="true">›</span>
+                <a asp-action="Details" asp-route-id="@partnerId">Partner</a><span class="crumb-sep" aria-hidden="true">›</span>
+                <span>Edit</span>
+            </nav>
+            <h1 class="h1">Edit partner</h1>
+            <p class="lede" style="margin-top:4px">Change the partner's name or the email they sign in with. Their password stays the same.</p>
+        </div>
+    </div>
+
+    <div class="page-stack form-page">
+        <form asp-action="Edit" asp-route-id="@partnerId" method="post" class="sheet sheet-form" novalidate>
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3">Partner details</h2>
+                    <p class="small muted">All fields are required.</p>
+                </div>
+            </div>
+            <div class="sheet-b">
+                <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+                <div class="field">
+                    <label asp-for="Name" class="field-label req"></label>
+                    <input asp-for="Name" class="tinput" autocomplete="organization" />
+                    <span asp-validation-for="Name"></span>
+                </div>
+                <div class="field">
+                    <label asp-for="Email" class="field-label req"></label>
+                    <div class="hint">They sign in with this email.</div>
+                    <input asp-for="Email" class="tinput" autocomplete="off" />
+                    <span asp-validation-for="Email"></span>
+                </div>
+            </div>
+            <div class="sheet-f">
+                <a asp-action="Details" asp-route-id="@partnerId" class="btn btn-quiet">Cancel</a>
+                <span class="spacer"></span>
+                <button type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

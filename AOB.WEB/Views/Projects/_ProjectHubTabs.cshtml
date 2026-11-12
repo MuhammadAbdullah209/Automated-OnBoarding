@@ -1,0 +1,44 @@
+@model Guid
+@{
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var active = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    string TabClass(string action) => active == action ? "prov-hub-tab is-active" : "prov-hub-tab";
+
+    var staffLiveStandard = ViewData["StaffLiveStandardStatus"] is true;
+    var statusAction = readOnlyStaff && !staffLiveStandard ? "Details" : "Provisioning";
+    var statusIsCurrent = active == statusAction;
+}
+
+<nav class="prov-hub-tabs ws-hub-tabs" aria-label="Project views">
+    @if (statusIsCurrent)
+    {
+        <span class="@TabClass(statusAction)" aria-current="page">Status</span>
+    }
+    else if (readOnlyStaff)
+    {
+        <a class="@TabClass(statusAction)" asp-controller="Projects" asp-action="@statusAction" asp-route-customerId="@actingCustomerId" asp-route-id="@Model">Status</a>
+    }
+    else
+    {
+        <a class="@TabClass(statusAction)" asp-controller="Projects" asp-action="Provisioning" asp-route-customerId="@actingCustomerId" asp-route-id="@Model">Status</a>
+    }
+
+    @if (active == "Summary")
+    {
+        <span class="@TabClass("Summary")" aria-current="page">Details</span>
+    }
+    else
+    {
+        <a class="@TabClass("Summary")" asp-controller="Projects" asp-action="Summary" asp-route-customerId="@actingCustomerId" asp-route-id="@Model">Details</a>
+    }
+
+    @if (active == "Activity")
+    {
+        <span class="prov-hub-tab is-active" aria-current="page">Activity</span>
+    }
+    else
+    {
+        <a class="prov-hub-tab" asp-controller="Projects" asp-action="Activity" asp-route-customerId="@actingCustomerId" asp-route-id="@Model">Activity</a>
+    }
+</nav>

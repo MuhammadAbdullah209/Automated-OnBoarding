@@ -1,0 +1,102 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.Common.Helpers
+@{
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var active = ViewContext.RouteData.Values["action"]?.ToString();
+    var step = active switch
+    {
+        "Discovery" => ProjectStep.Discovery,
+        "TechnicalEnvironment" => ProjectStep.TechnicalEnvironment,
+        "PaymentConfiguration" => ProjectStep.PaymentConfiguration,
+        "GatewayConfiguration" => ProjectStep.GatewayConfiguration,
+        "Readiness" => ProjectStep.ReadinessCheck,
+        "Details" => !Model.HasDiscovery ? ProjectStep.Discovery
+            : !Model.HasTechnicalEnvironment ? ProjectStep.TechnicalEnvironment
+            : !Model.HasPaymentConfiguration ? ProjectStep.PaymentConfiguration
+            : !Model.HasGatewayConfiguration ? ProjectStep.GatewayConfiguration
+            : ProjectStep.ReadinessCheck,
+        _ => Model.CurrentStep
+    };
+    var servicesLabel = Model.Services.Count > 0
+        ? string.Join(", ", Model.Services.Select(s => ProjectOptions.ServiceLabels[s]))
+        : "—";
+    var allSetupDone = Model.HasDiscovery && Model.HasTechnicalEnvironment && Model.HasPaymentConfiguration && Model.HasGatewayConfiguration;
+    var hubMode = ViewData["ProjectHubMode"] is true;
+    var hubLive = ViewData["ProjectHubLive"] is true;
+    var showLaunch = ViewData["ShowLaunchFlow"] is true && !readOnlyStaff;
+    var launchPending = ViewData["ShowLaunchFlowPending"] is true && !readOnlyStaff;
+    var showStaffGenerateSdp = ViewData["ShowStaffGenerateSdp"] is true;
+}
+<section class="band ws-band @(hubMode ? "ws-band--hub" : "") @(hubLive ? "ws-band--live" : "")">
+    <div class="wrap">
+        <div class="crumb">
+            @if (readOnlyStaff)
+            {
+                @* PCI Pal staff open projects through Customers/{customerId}/Projects/..., but "Projects" takes them back
+                   to every customer's projects, unfiltered. The named route keeps the URL's customer id out of the link. *@
+                <a href="@Url.RouteUrl("default", new { controller = "Projects", action = "Index" })">Projects</a>
+            }
+            else if (actingCustomerId is Guid customerId)
+            {
+                <a asp-controller="Projects" asp-action="Index" asp-route-customerId="@customerId">Projects</a>
+            }
+            else
+            {
+                <a asp-action="Index">Projects</a>
+            }
+            <span class="crumb-sep" aria-hidden="true">›</span>
+            <span>@Model.Name</span>
+        </div>
+        <div class="ws-head rise">
+            <div class="ttl">
+                <h1 class="h1">@Model.Name</h1>
+                <div class="ws-meta">
+                    <span class="mono num" style="color:var(--ink)">@ProjectOnboardingPresentation.ShortReference(Model.Id)</span>
+                    <span>@servicesLabel</span>
+                    @if (!hubLive)
+                    {
+                        <span>Created @Model.CreatedAt.ToString("d MMM yyyy")</span>
+                    }
+                </div>
+            </div>
+            <div style="flex:0 1 420px;min-width:260px">
+                <partial name="~/Views/Shared/Onboarding/_JourneyMeter.cshtml"
+                         model="(Model.Status, step, Model.InformationRequestStatus, Model.CreatedAt, false, Model.BuildType, Model.RequiresAccount, Model.Status == ProjectStatus.AccountCreation && Model.UsersCsvRequestedAt is not null)" />
+            </div>
+            @if ((showLaunch || launchPending) && hubMode)
+            {
+                <div class="ws-head-actions @(launchPending ? "is-pending" : "")" data-prov-launch-head>
+                    <partial name="_ProvFlowLaunchButton" model="@(Model.Id, actingCustomerId, "btn btn-secondary btn-sm prov-launch-btn prov-launch-btn--band")" />
+                </div>
+            }
+            else if (showStaffGenerateSdp && hubMode && hubLive)
+            {
+                <div class="ws-head-actions" data-prov-launch-head>
+                    <partial name="_ProvGenerateSdpButton" model="@(Model.Id, actingCustomerId, "btn btn-secondary btn-sm prov-launch-btn prov-launch-btn--band")" />
+                </div>
+            }
+        </div>
+        @if (Model.InformationRequestStatus == InformationRequestStatus.Requested)
+        {
+            <partial name="_InformationRequestAlert" model="Model.Id" />
+        }
+        else if (!hubLive || readOnlyStaff)
+        {
+            <div style="margin-top:16px" class="row wrap">
+                <partial name="~/Views/Shared/Onboarding/_CourtBadge.cshtml"
+                         model="(Model.Status, step, Model.InformationRequestStatus, Model.Status == ProjectStatus.AccountCreation && Model.UsersCsvRequestedAt is not null)" />
+                @if (allSetupDone && !Model.IsSubmitted)
+                {
+                    <span class="tag ok">All sections complete</span>
+                }
+            </div>
+        }
+        @if (hubMode)
+        {
+            <partial name="_ProjectHubTabs" model="Model.Id" />
+        }
+    </div>
+</section>

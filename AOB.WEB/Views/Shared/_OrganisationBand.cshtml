@@ -1,0 +1,47 @@
+@{
+    var title = ViewData["OrgBandTitle"] as string ?? "Organisation";
+    var company = ViewData["OrgBandCompany"] as string ?? title;
+    var lede = ViewData["OrgBandLede"] as string;
+    var profileTab = ViewData["OrgTab"] as string ?? "profile";
+    var profileIncomplete = ViewData["OrgProfileIncomplete"] as bool? == true;
+    var docUp = ViewData["OrgDocumentsUploaded"] as int? ?? 0;
+    var docTotal = ViewData["OrgDocumentsTotal"] as int? ?? 0;
+
+    if (string.IsNullOrWhiteSpace(lede)
+        && ViewData["OrgSectionsComplete"] is int okN)
+    {
+        lede = okN == 4
+            ? "Profile information complete."
+            : $"{okN} of 4 required profile sections complete.";
+        lede += $" {docUp} of {docTotal} documents uploaded.";
+    }
+}
+<section class="band org-band">
+    <div class="wrap rise org-band-inner">
+        <div class="org-band-head">
+            <div class="eyebrow">@title</div>
+            <h1 class="h1">@company</h1>
+            @if (!string.IsNullOrWhiteSpace(lede))
+            {
+                <p class="lede">@lede</p>
+            }
+        </div>
+        @if (User.IsInRole("Customer"))
+        {
+        <div class="band-tabs" role="tablist" aria-label="Organisation sections">
+            <a role="tab" asp-controller="CustomerProfile" asp-action="Index"
+               aria-selected="@(profileTab == "profile" ? "true" : "false")">
+                Profile
+                @if (profileIncomplete)
+                {
+                    <span class="dot" aria-label="incomplete"></span>
+                }
+            </a>
+            <a role="tab" asp-controller="CustomerDocuments" asp-action="Index"
+               aria-selected="@(profileTab == "docs" ? "true" : "false")">
+                Documents <span class="small" style="opacity:.8">(@docUp/@docTotal)</span>
+            </a>
+        </div>
+        }
+    </div>
+</section>

@@ -1,0 +1,225 @@
+@model AOB.WEB.ViewModels.Projects.ProjectDetailsViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.Common.Helpers
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
+    var full = Model.Details;
+    var project = full.Project;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var canEdit = !project.IsSubmitted && !readOnlyStaff;
+    // A missing document or URL can still be added while the project waits for approval, not only before submitting.
+    var canProvideMissing = !readOnlyStaff && ProjectStatusRules.CanCustomerProvideMissingItems(project.Status);
+
+    static string Show(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    static string List<T>(IEnumerable<T>? items, IReadOnlyDictionary<T, string> labels) where T : notnull
+    {
+        var texts = (items ?? Enumerable.Empty<T>()).Select(i => labels.TryGetValue(i, out var l) ? l : i.ToString()!).ToList();
+        return texts.Count == 0 ? "—" : string.Join(", ", texts);
+    }
+    static string One<T>(T? item, IReadOnlyDictionary<T, string> labels) where T : struct
+        => item is { } v && labels.TryGetValue(v, out var l) ? l : "—";
+
+    var servicesComplete = project.Services.Count > 0;
+    var discoveryComplete = project.HasDiscovery;
+    var paymentComplete = project.HasPaymentConfiguration && !string.IsNullOrWhiteSpace(full.PaymentGatewayName);
+    var gatewayComplete = project.HasGatewayConfiguration;
+    var apiDocRequired = project.UsesWebCallback;
+    var apiDocComplete = !apiDocRequired || project.HasApiDocumentation;
+    var usesRedirect = full.GatewayConfiguration?.PostTransactionMethods.Contains(PostTransactionMethod.Redirect) == true;
+    var redirectUrlComplete = !usesRedirect || !string.IsNullOrWhiteSpace(full.GatewayConfiguration?.RedirectUrl);
+    var integrationComplete = gatewayComplete && apiDocComplete && redirectUrlComplete;
+    var integrationFailReason = !gatewayComplete
+        ? "Adaptive configuration not completed"
+        : !apiDocComplete ? "API documentation not yet uploaded"
+        : !redirectUrlComplete ? "Redirect URL not yet provided" : "";
+}
+
+<div class="review-row" data-review-row>
+    <div class="review-row-head">
+        <div class="review-row-status @(servicesComplete ? "is-ok" : "is-fail")" aria-hidden="true">@(servicesComplete ? "✓" : "✕")</div>
+        <div class="review-row-summary">
+            <div class="review-row-title">Selected services</div>
+            <div class="review-row-hint text-muted">@(servicesComplete ? $"{project.Services.Count} service(s) selected." : "No services selected on this project.")</div>
+        </div>
+        <button type="button" class="review-expand" aria-expanded="false" aria-controls="review-services" data-review-toggle>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            <span class="sr-only">Show details</span>
+        </button>
+    </div>
+    <div class="review-row-body" id="review-services" hidden>
+        <div class="customer-service-pills">
+            @foreach (var s in project.Services)
+            {
+                <span class="customer-service-pill"><span class="bd"></span>@ProjectOptions.ServiceLabels[s]</span>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="review-row" data-review-row>
+    <div class="review-row-head">
+        <div class="review-row-status @(discoveryComplete ? "is-ok" : "is-fail")" aria-hidden="true">@(discoveryComplete ? "✓" : "✕")</div>
+        <div class="review-row-summary">
+            <div class="review-row-title">CRM &amp; payment journey</div>
+            <div class="review-row-hint text-muted">@(discoveryComplete ? "Discovery questions answered." : "Business & use-case discovery not completed.")</div>
+        </div>
+        <button type="button" class="review-expand" aria-expanded="false" aria-controls="review-discovery" data-review-toggle>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            <span class="sr-only">Show details</span>
+        </button>
+    </div>
+    <div class="review-row-body" id="review-discovery" hidden>
+        @if (full.Discovery is { } d)
+        {
+            <div class="customer-info-grid">
+                <div class="customer-info-field"><span class="customer-info-label">System your team uses</span><span class="customer-info-value">@One(d.CrmSystem, ProjectOptions.CrmSystemLabels)</span></div>
+                <div class="customer-info-field"><span class="customer-info-label">How customers pay today</span><span class="customer-info-value">@List(d.CurrentPaymentMethods, ProjectOptions.CurrentPaymentMethodLabels)</span></div>
+                <div class="customer-info-field"><span class="customer-info-label">Payment journey</span><span class="customer-info-value">@Show(d.PaymentJourneyDescription)</span></div>
+                <div class="customer-info-field"><span class="customer-info-label">Payment experience</span><span class="customer-info-value">@One(d.CrmPaymentExperience, ProjectOptions.CrmPaymentExperienceLabels)</span></div>
+                @if (d.CrmPaymentExperience == CrmPaymentExperience.EmbeddedIframe)
+                {
+                    <div class="customer-info-field"><span class="customer-info-label">Portal URLs</span><span class="customer-info-value" style="white-space:pre-line">@Show(d.PortalUrls)</span></div>
+                }
+            </div>
+        }
+        else { <p class="customer-muted-line">Not completed yet.</p> }
+        @if (canEdit) { <p class="review-row-edit"><a asp-action="Discovery" asp-route-id="@project.Id">Edit discovery</a></p> }
+    </div>
+</div>
+
+<div class="review-row" data-review-row>
+    <div class="review-row-head">
+        <div class="review-row-status @(project.HasTechnicalEnvironment ? "is-ok" : "is-fail")" aria-hidden="true">@(project.HasTechnicalEnvironment ? "✓" : "✕")</div>
+        <div class="review-row-summary">
+            <div class="review-row-title">Technical environment</div>
+            <div class="review-row-hint text-muted">@(project.HasTechnicalEnvironment ? "Environment and regions captured." : "Technical environment not completed.")</div>
+        </div>
+        <button type="button" class="review-expand" aria-expanded="false" aria-controls="review-technical" data-review-toggle>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            <span class="sr-only">Show details</span>
+        </button>
+    </div>
+    <div class="review-row-body" id="review-technical" hidden>
+        @if (full.TechnicalEnvironment is { } t)
+        {
+            <div class="customer-info-grid">
+                @if (project.CrmSystem == CrmSystem.Crm)
+                {
+                    <div class="customer-info-field"><span class="customer-info-label">Business system / CRM</span><span class="customer-info-value">@One(t.CrmPlatform, ProjectOptions.CrmPlatformLabels)</span></div>
+                }
+                <div class="customer-info-field"><span class="customer-info-label">Payment regions</span><span class="customer-info-value">@List(t.PaymentRegions, ProjectOptions.PaymentRegionLabels)</span></div>
+                <div class="customer-info-field"><span class="customer-info-label">Can reach external endpoints</span><span class="customer-info-value">@One(t.OutboundAccess, ProjectOptions.OutboundAccessLabels)</span></div>
+            </div>
+        }
+        else { <p class="customer-muted-line">Not completed yet.</p> }
+        @if (canEdit) { <p class="review-row-edit"><a asp-action="TechnicalEnvironment" asp-route-id="@project.Id">Edit technical environment</a></p> }
+    </div>
+</div>
+
+<div class="review-row" data-review-row>
+    <div class="review-row-head">
+        <div class="review-row-status @(paymentComplete ? "is-ok" : "is-fail")" aria-hidden="true">@(paymentComplete ? "✓" : "✕")</div>
+        <div class="review-row-summary">
+            <div class="review-row-title">Payment gateway credentials</div>
+            <div class="review-row-hint text-muted">@(paymentComplete ? "Gateway and payment settings captured." : "Payment gateway not configured.")</div>
+        </div>
+        <button type="button" class="review-expand" aria-expanded="false" aria-controls="review-payment" data-review-toggle>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            <span class="sr-only">Show details</span>
+        </button>
+    </div>
+    <div class="review-row-body" id="review-payment" hidden>
+        @if (full.PaymentConfiguration is { } pay)
+        {
+            <div class="customer-info-grid">
+                <div class="customer-info-field"><span class="customer-info-label">PSP / gateway</span><span class="customer-info-value">@Show(full.PaymentGatewayName)</span></div>
+                <div class="customer-info-field"><span class="customer-info-label">Supported cards</span><span class="customer-info-value">@List(pay.SupportedCards, ProjectOptions.CardSchemeLabels)</span></div>
+                <div class="customer-info-field"><span class="customer-info-label">Merchant accounts</span><span class="customer-info-value">@(pay.TotalMerchantAccounts?.ToString() ?? "—")</span></div>
+                @if (pay.TotalMerchantAccounts is > 1)
+                {
+                    <div class="customer-info-field"><span class="customer-info-label">Merchants identified</span><span class="customer-info-value">@One(pay.MerchantIdentification, ProjectOptions.MerchantIdentificationLabels)@(pay.MerchantIdentification == MerchantIdentification.Other && !string.IsNullOrWhiteSpace(pay.MerchantIdentificationOther) ? ": " + pay.MerchantIdentificationOther : "")</span></div>
+                }
+                <div class="customer-info-field"><span class="customer-info-label">Currencies</span><span class="customer-info-value">@List(pay.Currencies, ProjectOptions.CurrencyLabels)</span></div>
+            </div>
+        }
+        else { <p class="customer-muted-line">Not completed yet.</p> }
+        @if (canEdit) { <p class="review-row-edit"><a asp-action="PaymentConfiguration" asp-route-id="@project.Id">Edit payment configuration</a></p> }
+    </div>
+</div>
+
+<div class="review-row" data-review-row>
+    <div class="review-row-head">
+        <div class="review-row-status @(integrationComplete ? "is-ok" : "is-fail")" aria-hidden="true">@(integrationComplete ? "✓" : "✕")</div>
+        <div class="review-row-summary">
+            <div class="review-row-title">Required integration document</div>
+            <div class="review-row-hint text-muted">@(integrationComplete ? "Integration configuration and documents in place." : integrationFailReason)</div>
+        </div>
+        <button type="button" class="review-expand" aria-expanded="@(integrationComplete ? "false" : "true")" aria-controls="review-integration" data-review-toggle>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            <span class="sr-only">Show details</span>
+        </button>
+    </div>
+    <div class="review-row-body" id="review-integration" @(integrationComplete ? "hidden" : "")>
+        @if (full.GatewayConfiguration is { } g)
+        {
+            <div class="customer-info-grid">
+                <div class="customer-info-field"><span class="customer-info-label">Post-transaction transfer</span><span class="customer-info-value">@List(g.PostTransactionMethods, ProjectOptions.PostTransactionMethodLabels)</span></div>
+                <div class="customer-info-field"><span class="customer-info-label">API documentation</span><span class="customer-info-value">
+                    @if (full.ApiDocumentation is { } doc)
+                    {
+                        if (actingCustomerId is Guid cid)
+                        {
+                            <a asp-controller="Customers" asp-action="DownloadProjectApiDocumentation" asp-route-id="@cid" asp-route-projectId="@project.Id">@doc.FileName</a>
+                        }
+                        else
+                        {
+                            <a asp-action="DownloadApiDocumentation" asp-route-id="@project.Id">@doc.FileName</a>
+                        }
+                    }
+                    else if (apiDocRequired && canProvideMissing)
+                    {
+                        @* Web Callback needs documentation: upload it here instead of going back to the step. *@
+                        <form asp-action="UploadApiDocumentation" asp-route-customerId="@actingCustomerId" asp-route-id="@project.Id"
+                              method="post" enctype="multipart/form-data" class="review-inline-form">
+                            <input type="file" name="apiDocumentation" class="tinput" required
+                                   accept=".pdf,.json,.yaml,.yml,.doc,.docx,.txt"
+                                   data-max-bytes="@(Configuration.GetValue("FileStorage:MaxFileSizeMB", 10) * 1024L * 1024L)" />
+                            <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                        </form>
+                    }
+                    else
+                    {
+                        @:Not provided yet
+                    }
+                </span></div>
+
+                @if (usesRedirect)
+                {
+                    <div class="customer-info-field"><span class="customer-info-label">Redirect URL</span><span class="customer-info-value">
+                        @if (!string.IsNullOrWhiteSpace(g.RedirectUrl))
+                        {
+                            @g.RedirectUrl
+                        }
+                        else if (canProvideMissing)
+                        {
+                            @* Redirect needs somewhere to send the customer: enter the URL here. *@
+                            <form asp-action="SaveRedirectUrl" asp-route-customerId="@actingCustomerId" asp-route-id="@project.Id"
+                                  method="post" class="review-inline-form">
+                                <input type="url" name="redirectUrl" class="tinput" placeholder="https://" required />
+                                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                            </form>
+                        }
+                        else
+                        {
+                            @:Not provided yet
+                        }
+                    </span></div>
+                }
+            </div>
+        }
+        else { <p class="customer-muted-line">Not completed yet.</p> }
+        @if (canEdit) { <p class="review-row-edit"><a asp-action="GatewayConfiguration" asp-route-id="@project.Id">Edit adaptive configuration</a></p> }
+    </div>
+</div>

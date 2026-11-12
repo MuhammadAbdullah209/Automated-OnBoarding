@@ -1,0 +1,37 @@
+@model AOB.WEB.ViewModels.Auth.ResetPasswordViewModel
+
+<form asp-controller="Auth" asp-action="ResetPassword" method="post" class="stack" data-auth-form novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+    <input asp-for="Email" type="hidden" />
+    <input asp-for="ResetToken" type="hidden" />
+
+    <div class="field">
+        <label asp-for="NewPassword" class="label req"></label>
+        <div class="input-wrap">
+            <input asp-for="NewPassword" class="tinput input" autocomplete="new-password" id="reset-new-password" aria-describedby="reset-new-password-rules" />
+            <button type="button" class="eye" aria-label="Show password" data-password-toggle data-target="reset-new-password">
+                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+            </button>
+        </div>
+        <span asp-validation-for="NewPassword"></span>
+        <partial name="_PasswordChecklist" model="@("reset-new-password")" />
+    </div>
+    <div class="field">
+        <label asp-for="ConfirmPassword" class="label req"></label>
+        <div class="input-wrap">
+            <input asp-for="ConfirmPassword" class="tinput input" autocomplete="new-password" id="reset-confirm-password" />
+            <button type="button" class="eye" aria-label="Show password" data-password-toggle data-target="reset-confirm-password">
+                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+            </button>
+        </div>
+        <span asp-validation-for="ConfirmPassword"></span>
+        <div class="pw-match" data-password-match data-for="reset-confirm-password" data-compare="reset-new-password" aria-live="polite"></div>
+    </div>
+
+    <div class="auth-actions">
+        <button type="submit" class="btn btn-primary btn-lg btn-block sweep"><span class="spinner" aria-hidden="true"></span>Reset password</button>
+    </div>
+</form>
+
+<p class="auth-alt" style="margin:0"><a asp-controller="Auth" asp-action="Login" class="auth-link link">&larr; Back to sign in</a></p>

@@ -1,0 +1,34 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Enums
+@*
+    The customer's way to delete a project. Same rule as before: only until provisioning is complete, and never for
+    staff. It posts to Delete, which opens the confirmation (reason + countdown) screen; nothing is removed here.
+*@
+@{
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var provisioned = Model.Status is ProjectStatus.AccountCreation or ProjectStatus.Completed
+        || (Model.Status == ProjectStatus.Provisioning && ViewData["ProvisioningStepsComplete"] is true);
+    var visible = !readOnlyStaff && Model.DeletionScheduledFor is null && !provisioned;
+}
+
+@if (visible)
+{
+    <section class="sheet delete-project-sheet" id="delete-project" aria-labelledby="delete-project-h">
+        <div class="sheet-b delete-project-row">
+            <span class="qic bad" aria-hidden="true">
+                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg>
+            </span>
+            <div class="delete-project-text">
+                <h2 class="h3" id="delete-project-h">Delete this project</h2>
+                <p class="small muted">
+                    You can delete it until provisioning is complete. You give a reason first, then a short countdown starts
+                    and you can restore the project until it ends.
+                </p>
+            </div>
+            <form asp-action="Delete" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" class="delete-project-form">
+                <button type="submit" class="btn danger btn-sm">Delete project</button>
+            </form>
+        </div>
+    </section>
+}

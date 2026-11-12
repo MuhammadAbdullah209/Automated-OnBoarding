@@ -1,0 +1,61 @@
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@model (GatewayFieldOptionsDto Gateway, ProjectGatewayConfigurationDto Config, List<GatewayFieldOptionDto> Authentication, List<GatewayFieldOptionDto> Inputs, List<GatewayFieldOptionDto> Outputs)
+
+@{
+    var (_, config, authentication, inputs, outputs) = Model;
+}
+
+<div class="flist">
+    <div class="flist-h">
+        <span class="strong">Authentication</span>
+        <span class="xsmall muted">PCI Pal collects these securely during setup</span>
+    </div>
+    @if (authentication.Count == 0)
+    {
+        <div class="frow frow--static"><span class="xsmall muted">No authentication fields are listed for this gateway.</span></div>
+    }
+    @foreach (var f in authentication)
+    {
+        <div class="frow frow--static">
+            <span class="tag blue">Required</span>
+            <div class="frow-body">
+                <span class="fk">@f.Name</span>
+                @if (!string.IsNullOrWhiteSpace(f.Description))
+                {
+                    <div class="xsmall muted">@f.Description</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<div class="flist">
+    <div class="flist-h">
+        <span class="strong">Inputs</span>
+        <span class="xsmall muted">Sent from your system to PCI Pal</span>
+    </div>
+    @if (inputs.Count == 0)
+    {
+        <div class="frow frow--static"><span class="xsmall muted">No input fields are listed for this gateway.</span></div>
+    }
+    @foreach (var f in inputs)
+    {
+        <partial name="_GatewayFieldRow" model="@(f, config, "SelectedInputFields", "in")" />
+    }
+</div>
+
+<div class="flist">
+    <div class="flist-h">
+        <span class="strong">Outputs</span>
+        <span class="xsmall muted">Returned to your system</span>
+    </div>
+    @if (outputs.Count == 0)
+    {
+        <div class="frow frow--static"><span class="xsmall muted">No output fields are listed for this gateway.</span></div>
+    }
+    @foreach (var f in outputs)
+    {
+        <partial name="_GatewayFieldRow" model="@(f, config, "SelectedOutputFields", "out")" />
+    }
+</div>

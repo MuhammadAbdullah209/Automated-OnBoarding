@@ -1,0 +1,247 @@
+@model AOB.WEB.ViewModels.Customers.CustomerProfileOverviewViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.WEB.Helpers
+@{
+    if (Model.IsOwnProfile)
+    {
+        <partial name="_CustomerProfileOrganisationProfile" model="Model" />
+        return;
+    }
+
+    var p = Model.Profile;
+
+    static string Dash(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value!;
+
+    var country = CustomerFormOptions.LabelFor(CustomerFormOptions.Countries, p.RegisteredCountryCode?.ToUpperInvariant());
+    var sector = CustomerFormOptions.LabelFor(CustomerFormOptions.IndustrySectors, p.IndustrySector);
+    var operating = CustomerFormOptions.LabelFor(CustomerFormOptions.OperatingPatterns, p.OperatingPattern);
+    var timeZone = CustomerFormOptions.LabelFor(CustomerFormOptions.TimeZones, p.PrimaryTimeZone);
+
+    var displayName = string.IsNullOrWhiteSpace(p.CompanyName)
+        ? (Model.IsOwnProfile ? "Your organisation" : "Unnamed customer")
+        : p.CompanyName!;
+
+    var initials = string.Concat(displayName
+        .Split(new[] { ' ', '(', ')', '-' }, StringSplitOptions.RemoveEmptyEntries)
+        .Where(part => char.IsLetterOrDigit(part[0]))
+        .Take(2)
+        .Select(part => char.ToUpperInvariant(part[0])));
+    if (string.IsNullOrEmpty(initials))
+    {
+        initials = "CO";
+    }
+
+    static string StatusBadgeClass(CustomerStatus status) => status switch
+    {
+        CustomerStatus.Onboarded => "ok",
+        CustomerStatus.Disabled => "",
+        _ => "blue"
+    };
+
+    static string DocKind(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName)) return "DOC";
+        var dot = fileName.LastIndexOf('.');
+        if (dot < 0 || dot >= fileName.Length - 1) return "DOC";
+        var ext = fileName[(dot + 1)..].ToUpperInvariant();
+        return ext.Length is > 0 and <= 4 ? ext : "DOC";
+    }
+
+    var customerId = Model.ViewedCustomerId;
+}
+
+@* Partner / PCI Pal staff view of a customer (the customer's own profile returns above). Prototype organisation layout. *@
+<div class="rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-controller="Customers" asp-action="Index">Customers</a><span class="crumb-sep" aria-hidden="true">›</span><span>@displayName</span>
+            </nav>
+            <div class="row wrap" style="gap:10px">
+                <span class="av" aria-hidden="true" style="width:44px;height:44px;font-size:14px">@initials</span>
+                <h1 class="h1">@displayName</h1>
+                <span class="tag @StatusBadgeClass(Model.Status)">@ProjectOptions.CustomerStatusLabels[Model.Status]</span>
+            </div>
+            <p class="lede" style="margin-top:6px">
+                @if (!string.IsNullOrWhiteSpace(p.PrimaryContactEmail))
+                {
+                    @p.PrimaryContactEmail
+                    @if (!string.IsNullOrWhiteSpace(country) && country != "—")
+                    {
+                        @: · @country
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(country) && country != "—")
+                {
+                    @country
+                }
+                else
+                {
+                    @:Organisation and contact details for this customer.
+                }
+            </p>
+        </div>
+        @if (customerId is Guid cid)
+        {
+            <div class="ph-actions">
+                @if (Model.Status == CustomerStatus.Disabled)
+                {
+                    <form asp-controller="Customers" asp-action="SetDisabled" asp-route-id="@cid" method="post" style="margin:0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="disabled" value="false" />
+                        <button type="submit" class="btn btn-secondary">Re-enable customer</button>
+                    </form>
+                }
+                else
+                {
+                    <form asp-controller="Customers" asp-action="SetDisabled" asp-route-id="@cid" method="post" style="margin:0"
+                          data-confirm-title="Disable @displayName?"
+                          data-confirm="They won’t be able to sign in until you re-enable them."
+                          data-confirm-ok="Disable customer"
+                          data-confirm-tone="danger">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="disabled" value="true" />
+                        <button type="submit" class="btn danger">Disable customer</button>
+                    </form>
+                }
+                <a asp-controller="Projects" asp-action="Index" asp-route-customer="@cid" class="btn btn-quiet">Projects</a>
+                @if (User.IsInRole(nameof(UserType.Partner)))
+                {
+                    <a asp-controller="Projects" asp-action="Create" asp-route-customer="@cid" asp-route-returnUrl="@NavigationReturnUrl.Current(Context.Request)" class="btn btn-primary">
+                        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                        New project
+                    </a>
+                }
+            </div>
+        }
+    </div>
+
+    <partial name="_FlashMessages" />
+
+    <div class="dz-grid">
+        <section class="sheet" aria-labelledby="cust-org-h">
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3" id="cust-org-h">Organisation and contacts</h2>
+                    <p class="small muted">As entered by the customer. Read-only.</p>
+                </div>
+            </div>
+            <div class="sheet-b">
+                <div class="ans-sec">
+                    <div class="ans-h"><div class="strong">Company</div></div>
+                    <dl class="dl">
+                        <dt>Company name</dt><dd>@Dash(p.CompanyName)</dd>
+                        <dt>Registered country</dt><dd>@Dash(country)</dd>
+                        <dt>Registration no.</dt><dd>@Dash(p.CompanyRegistrationNumber)</dd>
+                        <dt>Industry</dt><dd>@Dash(sector)</dd>
+                        <dt>Website</dt>
+                        <dd>
+                            @if (string.IsNullOrWhiteSpace(p.CompanyWebsite))
+                            {
+                                @:—
+                            }
+                            else
+                            {
+                                <a class="link" href="@(p.CompanyWebsite.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? p.CompanyWebsite : "https://" + p.CompanyWebsite)" target="_blank" rel="noopener">@p.CompanyWebsite</a>
+                            }
+                        </dd>
+                        <dt>Technology partner</dt><dd>@(p.HasTechnologyPartner ? "Yes" : "No")</dd>
+                    </dl>
+                </div>
+                <div class="ans-sec">
+                    <div class="ans-h"><div class="strong">Primary contact</div></div>
+                    <dl class="dl">
+                        <dt>Name</dt><dd>@Dash(p.PrimaryContactFullName)</dd>
+                        <dt>Job title</dt><dd>@Dash(p.PrimaryContactJobTitle)</dd>
+                        <dt>Email</dt><dd>@Dash(p.PrimaryContactEmail)</dd>
+                        <dt>Phone</dt><dd>@Dash(p.PrimaryContactPhoneNumber)</dd>
+                    </dl>
+                </div>
+                <div class="ans-sec">
+                    <div class="ans-h"><div class="strong">Technical contact</div></div>
+                    <dl class="dl">
+                        <dt>Name</dt><dd>@Dash(p.TechnicalContactFullName)</dd>
+                        <dt>Job title</dt><dd>@Dash(p.TechnicalContactJobTitle)</dd>
+                        <dt>Email</dt><dd>@Dash(p.TechnicalContactEmail)</dd>
+                        <dt>Phone</dt><dd>@Dash(p.TechnicalContactPhoneNumber)</dd>
+                    </dl>
+                </div>
+                <div class="ans-sec">
+                    <div class="ans-h"><div class="strong">Operating hours</div></div>
+                    <dl class="dl">
+                        <dt>Pattern</dt><dd>@Dash(operating)</dd>
+                        <dt>Time zone</dt><dd>@Dash(timeZone)</dd>
+                    </dl>
+                </div>
+            </div>
+        </section>
+
+        <aside class="sheet" aria-labelledby="cust-docs-h" style="overflow:hidden">
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3" id="cust-docs-h">Documents</h2>
+                    <p class="small muted">
+                        @Model.DocumentsUploadedCount of @Model.Documents.Count uploaded
+                        @if (Model.RequiredDocumentsMissing > 0)
+                        {
+                            @: · @Model.RequiredDocumentsMissing required missing
+                        }
+                    </p>
+                </div>
+            </div>
+            @if (Model.Documents.Count == 0)
+            {
+                <div class="sheet-b"><p class="small muted">No documents are requested right now.</p></div>
+            }
+            else
+            {
+                <div class="ledger">
+                    @foreach (var doc in Model.Documents)
+                    {
+                        <div class="doc-row" style="padding:14px 16px;grid-template-columns:40px minmax(0,1fr)">
+                            <span class="doc-ic @(doc.IsUploaded ? "ok" : "")" aria-hidden="true">
+                                @if (doc.IsUploaded)
+                                {
+                                    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5" /></svg>
+                                }
+                                else
+                                {
+                                    <span class="mono xsmall">@DocKind(doc.FileName)</span>
+                                }
+                            </span>
+                            <div class="doc-body">
+                                <div class="doc-head">
+                                    <span class="doc-title">@doc.Name</span>
+                                    @if (doc.IsRequired)
+                                    {
+                                        <span class="tag">Required</span>
+                                    }
+                                </div>
+                                <p class="doc-meta">
+                                    @if (doc.IsUploaded && doc.UploadedAt is { } uploadedAt)
+                                    {
+                                        @:Uploaded @uploadedAt.ToString("d MMM yyyy")
+                                        @if (customerId is Guid docCustomerId)
+                                        {
+                                            @: ·
+                                            <a asp-controller="Customers" asp-action="DownloadDocument" asp-route-id="@docCustomerId" asp-route-documentTypeId="@doc.DocumentTypeId" class="link">View</a>
+                                        }
+                                    }
+                                    else if (doc.IsUploaded)
+                                    {
+                                        @:Uploaded
+                                    }
+                                    else
+                                    {
+                                        @:Not uploaded yet
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </aside>
+    </div>
+</div>

@@ -1,0 +1,123 @@
+@model IReadOnlyList<AOB.BAL.DTOs.Documents.DocumentTypeDto>
+@using AOB.BAL.Common.Constants
+@{
+    ViewData["Title"] = "Document types";
+    ViewData["Crumbs"] = "Document types";
+    ViewData["FullBleed"] = true;
+    var canManage = User.IsInRole(AppRoles.InternalUser);
+    var activeCount = Model.Count(t => t.IsActive);
+    var requiredCount = Model.Count(t => t.IsActive && t.IsRequired);
+}
+
+<div class="wrap rise projects-band">
+    <div class="projects-ph">
+        <div class="ttl">
+            <div class="eyebrow">PCI Pal staff</div>
+            <h1 class="h1">Document types</h1>
+            <p class="lede">What customers are asked to upload on their Organisation page.</p>
+        </div>
+        @if (canManage)
+        {
+            <a asp-action="Create" class="btn btn-primary">
+                <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                Add document type
+            </a>
+        }
+    </div>
+    <div class="home-sum" aria-label="Summary" style="margin:0 0 24px">
+        <div class="k"><span class="kv">@Model.Count</span><span class="kl">Document types</span></div>
+        <div class="k"><span class="kv">@activeCount</span><span class="kl">Shown to customers</span></div>
+        <div class="k"><span class="kv">@requiredCount</span><span class="kl">Required</span></div>
+    </div>
+</div>
+
+<div class="wrap rise projects-page">
+    <partial name="_FlashMessages" />
+
+    <div class="note plain" role="status">
+        <span class="ni" aria-hidden="true">
+            <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+        </span>
+        <div class="nd">
+            Customers see active document types on <strong>Organisation › Documents</strong>. Required ones count towards their profile being complete; optional ones are marked “Optional”.
+            @if (!canManage)
+            {
+                @: Only internal users can add or change document types.
+            }
+        </div>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <section class="sheet">
+            <div class="empty">
+                <div class="art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                <h2 class="h2">No document types yet</h2>
+                <p class="muted">Add document types for the customer evidence checklist.</p>
+                @if (canManage)
+                {
+                    <a asp-action="Create" class="btn btn-primary btn-sm">Add document type</a>
+                }
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="sheet" aria-label="Document types">
+            @foreach (var t in Model)
+            {
+                <div class="doc-row @(t.IsActive ? "" : "is-inactive")">
+                    <span class="doc-ic @(t.IsActive ? "pending" : "")" aria-hidden="true">
+                        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <path d="M14 2v6h6" />
+                            <path d="M8 13h8" />
+                            <path d="M8 17h5" />
+                        </svg>
+                    </span>
+                    <div class="doc-body">
+                        <div class="doc-head">
+                            <span class="doc-title">@t.Name</span>
+                            @if (t.IsRequired)
+                            {
+                                <span class="tag blue">Required</span>
+                            }
+                            else
+                            {
+                                <span class="opt">Optional</span>
+                            }
+                            @if (!t.IsActive)
+                            {
+                                <span class="tag">Inactive · hidden from customers</span>
+                            }
+                        </div>
+                        <p class="doc-meta">
+                            @if (!string.IsNullOrWhiteSpace(t.Description))
+                            {
+                                @t.Description<br />
+                            }
+                            <span class="mono">Order @t.SortOrder</span> · @t.UploadCount @(t.UploadCount == 1 ? "upload" : "uploads")
+                        </p>
+                    </div>
+                    <div class="row dact" style="gap:6px">
+                        @if (canManage)
+                        {
+                            <a asp-action="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-quiet">Edit</a>
+                            <form asp-action="Delete" asp-route-id="@t.Id" method="post" class="doc-upload-form"
+                                  data-confirm-title="Delete “@t.Name”?"
+                                  data-confirm="Customers will no longer be asked for this document. You can’t undo this."
+                                  data-confirm-ok="Delete document type"
+                                  data-confirm-tone="danger">
+                                <button type="submit" class="btn btn-sm text" style="color:var(--bad-ink)">Delete</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+            <div class="sheet-f small muted">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M3 12h12M3 18h6" /></svg>
+                Listed in the order customers see them. Change a document’s order number to move it.
+            </div>
+        </section>
+    }
+</div>

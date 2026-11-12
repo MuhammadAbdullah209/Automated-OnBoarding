@@ -1,0 +1,99 @@
+@model AOB.BAL.DTOs.Projects.CreateProjectDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.WEB.Helpers
+@{
+    ViewData["Title"] = "New project";
+    ViewData["Crumbs"] = "Projects / New project";
+
+    var comingSoon = Enum.GetValues<PciPalService>().Where(s => !ProjectOptions.AvailableServices.Contains(s)).ToList();
+    var comingSoonText = string.Join(" and ", comingSoon.Select(s => ProjectOptions.ServiceLabels[s]));
+    var selectedCustomer = ViewData["SelectedCustomerId"] as Guid?;
+    var cancelUrl = ViewData["CreateCancelUrl"] as string
+        ?? (selectedCustomer is Guid cid ? Url.Action("Index", new { customer = cid }) : Url.Action("Index"));
+    var createReturnUrl = ViewData["CreateReturnUrl"] as string;
+}
+
+<div class="narrow-page rise project-create-page">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a href="@cancelUrl">Projects</a><span class="crumb-sep" aria-hidden="true">›</span><span>New project</span>
+            </nav>
+            <div class="eyebrow">New project</div>
+            <h1 class="h1" style="margin-top:4px">Start a rollout</h1>
+            <p class="lede" style="margin-top:4px">Name it and pick the services. You’ll answer the setup questions next.</p>
+        </div>
+    </div>
+
+    <div class="page-stack">
+        <form asp-action="Create" method="post" class="sheet sheet-form project-flow-form project-create-form" novalidate>
+            @if (!string.IsNullOrEmpty(createReturnUrl))
+            {
+                <input type="hidden" name="returnUrl" value="@createReturnUrl" />
+            }
+            <div class="sheet-b">
+                <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+                @if (ViewData["CustomerOptions"] is IReadOnlyList<AOB.BAL.DTOs.Customers.CustomerOptionDto> customerOptions)
+                {
+                    var preselected = customerOptions.FirstOrDefault(c => c.Id == selectedCustomer);
+                    <div class="field">
+                        <label for="customer" class="field-label req">Customer</label>
+                        <div class="hint">The organisation this onboarding is for.</div>
+                        @if (preselected is not null)
+                        {
+                            <input type="hidden" name="customer" value="@preselected.Id" />
+                            <input id="customer" class="tinput" type="text" readonly aria-readonly="true" style="max-width:640px"
+                                   value="@(string.IsNullOrWhiteSpace(preselected.CompanyName) ? "Unnamed customer" : preselected.CompanyName)" />
+                        }
+                        else
+                        {
+                            <select id="customer" name="customer" class="tinput" required style="max-width:640px">
+                                <option value="">Select a customer</option>
+                                @foreach (var c in customerOptions)
+                                {
+                                    <option value="@c.Id" selected="@(selectedCustomer == c.Id ? "selected" : null)">@(string.IsNullOrWhiteSpace(c.CompanyName) ? "Unnamed customer" : c.CompanyName)</option>
+                                }
+                            </select>
+                        }
+                        @Html.ValidationMessage("customer")
+                    </div>
+                }
+
+                <div class="field">
+                    <label asp-for="Name" class="field-label req">Project name</label>
+                    <div class="hint">A name your team will recognise, such as the team or channel it’s for.</div>
+                    <input asp-for="Name" class="tinput" placeholder="e.g. Customer service payments — UK" autocomplete="off" style="max-width:640px" />
+                    <span asp-validation-for="Name"></span>
+                </div>
+
+                <div class="field" role="group" aria-labelledby="create-services-heading">
+                    <div id="create-services-heading" class="field-label req">PCI Pal services</div>
+                    <div class="hint">Choose all that apply. The questions adapt to your choice.</div>
+                    @Html.EnumCardCheckboxes("Services", ProjectOptions.ServiceLabels, Model.Services, ProjectFormMetadata.ServiceCards, comingSoon, layout: "grid-auto-proto")
+                    <span asp-validation-for="Services"></span>
+                </div>
+
+                @if (comingSoon.Count > 0)
+                {
+                    <div class="note plain">
+                        <span class="ni" aria-hidden="true">
+                            <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+                        </span>
+                        <div class="nd">@comingSoonText @(comingSoon.Count == 1 ? "is" : "are") coming soon and can’t be selected yet.</div>
+                    </div>
+                }
+            </div>
+            <div class="sheet-f">
+                <a href="@cancelUrl" class="btn btn-quiet">Cancel</a>
+                <span class="spacer"></span>
+                <button type="submit" class="btn btn-primary">Create and start</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

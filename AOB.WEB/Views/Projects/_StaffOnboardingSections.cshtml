@@ -1,0 +1,183 @@
+@model AOB.WEB.ViewModels.Projects.ProjectDetailsViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@{
+    var full = Model.Details;
+    var project = full.Project;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+
+    static string Show(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    static string List<T>(IEnumerable<T>? items, IReadOnlyDictionary<T, string> labels) where T : notnull
+    {
+        var texts = (items ?? Enumerable.Empty<T>()).Select(i => labels.TryGetValue(i, out var l) ? l : i.ToString()!).ToList();
+        return texts.Count == 0 ? "—" : string.Join(", ", texts);
+    }
+    static string One<T>(T? item, IReadOnlyDictionary<T, string> labels) where T : struct
+        => item is { } v && labels.TryGetValue(v, out var l) ? l : "—";
+
+    // How the payment page is shown decides what happens after provisioning: an account is only created when PCI Pal
+    // hosts the page. Result return (post-transaction) is shown with it because it also depends on the experience.
+    var experience = full.Discovery?.CrmPaymentExperience;
+    var experienceText = One(experience, ProjectOptions.CrmPaymentExperienceLabels);
+    var accountText = experience switch
+    {
+        CrmPaymentExperience.HostedByPciPal => "Account is created after provisioning",
+        CrmPaymentExperience.EmbeddedIframe => "No account: the form is embedded in the CRM",
+        _ => project.CrmSystem == CrmSystem.ContactCentreEnvironment ? "No account: contact centre environment" : "—"
+    };
+    var resultReturnText = List(full.GatewayConfiguration?.PostTransactionMethods, ProjectOptions.PostTransactionMethodLabels);
+
+    var sections = new (string Id, string Title, string Lede, bool Done)[]
+    {
+        ("staff-onboard-discovery", "Business and use-case discovery", "How your customers pay and how your team is involved. These answers decide which questions come next.", project.HasDiscovery),
+        ("staff-onboard-technical", "Technical environment", "The systems and PCI Pal regions you’ll use, and whether your network allows outbound connections.", project.HasTechnicalEnvironment),
+        ("staff-onboard-payment", "Payment configuration", "Your payment provider, accepted cards, currencies and how card numbers are shown afterwards.", project.HasPaymentConfiguration),
+        ("staff-onboard-gateway", "Adaptive configuration", "The data fields your gateway uses and how payment results return to your system.", project.HasGatewayConfiguration),
+    };
+}
+
+<div class="overview-rsecs overview-rsecs--staff">
+    @foreach (var s in sections)
+    {
+        var st = s.Done ? "done" : "todo";
+        var statusText = s.Done ? "Complete" : "Not started";
+        <div class="rsec-staff" data-review-row>
+            <div class="rsec rsec--@st rsec-staff-head">
+                <span class="tick @(s.Done ? "on" : "")" style="width:28px;height:28px" aria-hidden="true">
+                    @if (s.Done)
+                    {
+                        <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    }
+                    else
+                    {
+                        <span class="mono" style="font-size:11px;font-weight:600">—</span>
+                    }
+                </span>
+                <div class="rsec-staff-main">
+                    <div class="strong">@s.Title</div>
+                    <div class="small muted">@s.Lede</div>
+                    <div class="xsmall rsec-status muted">@statusText</div>
+                    @if (s.Id == "staff-onboard-discovery" && experience is not null)
+                    {
+                        <div class="rsec-staff-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+                            <span class="tag blue">@experienceText</span>
+                            <span class="tag @(experience == CrmPaymentExperience.HostedByPciPal ? "ok" : "")">@accountText</span>
+                            @if (full.GatewayConfiguration is not null)
+                            {
+                                <span class="tag">Result return: @resultReturnText</span>
+                            }
+                        </div>
+                    }
+                </div>
+                <button type="button" class="review-expand rsec-staff-expand" aria-expanded="false" aria-controls="@s.Id" data-review-toggle>
+                    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                    <span class="sr-only">Show selections</span>
+                </button>
+            </div>
+            <div class="rsec-staff-detail review-row-body" id="@s.Id" hidden>
+                @if (s.Id == "staff-onboard-discovery")
+                {
+                    @if (full.Discovery is { } d)
+                    {
+                        <div class="customer-info-grid">
+                            <div class="customer-info-field"><span class="customer-info-label">System your team uses</span><span class="customer-info-value">@One(d.CrmSystem, ProjectOptions.CrmSystemLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">How customers pay today</span><span class="customer-info-value">@List(d.CurrentPaymentMethods, ProjectOptions.CurrentPaymentMethodLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Payment journey</span><span class="customer-info-value">@Show(d.PaymentJourneyDescription)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Payment experience</span><span class="customer-info-value">@One(d.CrmPaymentExperience, ProjectOptions.CrmPaymentExperienceLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Account creation</span><span class="customer-info-value">@accountText</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Result return (post-transaction)</span><span class="customer-info-value">@resultReturnText</span></div>
+                            @if (d.CrmPaymentExperience == CrmPaymentExperience.EmbeddedIframe)
+                            {
+                                <div class="customer-info-field"><span class="customer-info-label">Portal URLs</span><span class="customer-info-value" style="white-space:pre-line">@Show(d.PortalUrls)</span></div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="customer-muted-line mb-0">No answers yet.</p>
+                    }
+                }
+                else if (s.Id == "staff-onboard-technical")
+                {
+                    @if (full.TechnicalEnvironment is { } t)
+                    {
+                        <div class="customer-info-grid">
+                            @if (project.CrmSystem == CrmSystem.Crm)
+                            {
+                                <div class="customer-info-field"><span class="customer-info-label">Business system / CRM</span><span class="customer-info-value">@One(t.CrmPlatform, ProjectOptions.CrmPlatformLabels)</span></div>
+                            }
+                            <div class="customer-info-field"><span class="customer-info-label">Payment regions</span><span class="customer-info-value">@List(t.PaymentRegions, ProjectOptions.PaymentRegionLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Staging regions</span><span class="customer-info-value">@List(t.StagingRegions, ProjectOptions.PciPalRegionLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Production regions</span><span class="customer-info-value">@List(t.ProductionRegions, ProjectOptions.PciPalRegionLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Can reach external endpoints</span><span class="customer-info-value">@One(t.OutboundAccess, ProjectOptions.OutboundAccessLabels)</span></div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="customer-muted-line mb-0">No answers yet.</p>
+                    }
+                }
+                else if (s.Id == "staff-onboard-payment")
+                {
+                    @if (full.PaymentConfiguration is { } p)
+                    {
+                        <div class="customer-info-grid">
+                            <div class="customer-info-field"><span class="customer-info-label">Payment provider</span><span class="customer-info-value">@Show(full.PaymentGatewayName)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Accepted cards</span><span class="customer-info-value">@List(p.SupportedCards, ProjectOptions.CardSchemeLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Attempts per session</span><span class="customer-info-value">@ProjectOptions.FormatMaxPaymentAttempts(p.MaxPaymentAttempts)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Merchant accounts</span><span class="customer-info-value">@(p.TotalMerchantAccounts?.ToString() ?? "—")</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Currencies</span><span class="customer-info-value">@List(p.Currencies, ProjectOptions.CurrencyLabels)</span></div>
+                            <div class="customer-info-field"><span class="customer-info-label">Card masking</span><span class="customer-info-value">@One(p.CardNumberMasking, ProjectOptions.CardNumberMaskingLabels)</span></div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="customer-muted-line mb-0">No answers yet.</p>
+                    }
+                }
+                else if (s.Id == "staff-onboard-gateway")
+                {
+                    @if (full.GatewayConfiguration is { } g)
+                    {
+                        <div class="customer-info-grid">
+                            <div class="customer-info-field"><span class="customer-info-label">Result return</span><span class="customer-info-value">@List(g.PostTransactionMethods, ProjectOptions.PostTransactionMethodLabels)</span></div>
+                            @if (g.PostTransactionMethods.Contains(PostTransactionMethod.Redirect))
+                            {
+                                <div class="customer-info-field"><span class="customer-info-label">Redirect URL</span><span class="customer-info-value">@Show(g.RedirectUrl)</span></div>
+                            }
+                            @if (g.PostTransactionMethods.Contains(PostTransactionMethod.WebCallback))
+                            {
+                                <div class="customer-info-field"><span class="customer-info-label">API documentation</span><span class="customer-info-value">
+                                    @if (full.ApiDocumentation is { } doc)
+                                    {
+                                        if (actingCustomerId is Guid cid)
+                                        {
+                                            <a asp-controller="Customers" asp-action="DownloadProjectApiDocumentation" asp-route-id="@cid" asp-route-projectId="@project.Id">@doc.FileName</a>
+                                        }
+                                        else
+                                        {
+                                            <a asp-action="DownloadApiDocumentation" asp-route-id="@project.Id">@doc.FileName</a>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @:Not provided yet
+                                    }
+                                </span></div>
+                            }
+                            @if (project.TakesPhonePayments)
+                            {
+                                <div class="customer-info-field"><span class="customer-info-label">Contact centre platform</span><span class="customer-info-value">@One(g.ContactCentrePlatform, ProjectOptions.ContactCentrePlatformLabels)</span></div>
+                                <div class="customer-info-field"><span class="customer-info-label">Connection type</span><span class="customer-info-value">@One(g.ConnectionType, ProjectOptions.ContactCentreConnectionTypeLabels)</span></div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="customer-muted-line mb-0">No answers yet.</p>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>

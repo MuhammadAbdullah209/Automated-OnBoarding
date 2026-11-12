@@ -1,0 +1,28 @@
+@using AOB.BAL.Common.Helpers
+@using AOB.BAL.DTOs.Activity
+@{
+    var activityLog = ViewData["ProjectActivity"] as IReadOnlyList<ActivityLogDto>
+        ?? Array.Empty<ActivityLogDto>();
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var projectId = (ViewData["Project"] as AOB.BAL.DTOs.Projects.ProjectOverviewDto)?.Id;
+}
+
+<section class="sheet staff-aside-card staff-activity-card staff-overview-sheet" id="staff-case-activity" aria-labelledby="act-h">
+    <div class="sheet-h">
+        <div class="sheet-ttl">
+            <h2 class="h3" id="act-h">Activity</h2>
+            <p class="small muted">Newest first</p>
+        </div>
+        @if (activityLog.Count > 0 && projectId is Guid)
+        {
+            <a class="link small" asp-controller="Projects" asp-action="Activity" asp-route-customerId="@actingCustomerId" asp-route-id="@projectId">Show all</a>
+        }
+    </div>
+    <div class="sheet-b staff-activity-sheet-b">
+        @{
+            ViewData["ActivityListId"] = "staff-prov-events";
+            ViewData["ActivityProvisioningPlaceholder"] = false;
+        }
+        <partial name="_ProjectActivityList" />
+    </div>
+</section>

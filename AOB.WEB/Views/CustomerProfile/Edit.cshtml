@@ -1,0 +1,185 @@
+@model AOB.BAL.DTOs.Customers.CustomerProfileDto
+@using AOB.BAL.Common.Constants
+@{
+    ViewData["Title"] = "Edit profile";
+    ViewData["Crumbs"] = "Profile / Edit";
+
+    var countries = new SelectList(CustomerFormOptions.Countries, nameof(SelectOption.Code), nameof(SelectOption.Label));
+    var sectors = new SelectList(CustomerFormOptions.IndustrySectors, nameof(SelectOption.Code), nameof(SelectOption.Label));
+    var patterns = new SelectList(CustomerFormOptions.OperatingPatterns, nameof(SelectOption.Code), nameof(SelectOption.Label));
+    var timeZones = new SelectList(CustomerFormOptions.TimeZones, nameof(SelectOption.Code), nameof(SelectOption.Label));
+
+    var showBackToOverview = !string.IsNullOrWhiteSpace(Model.CompanyName)
+                             && !string.IsNullOrWhiteSpace(Model.RegisteredCountryCode);
+}
+
+<div class="step-page project-case-page customer-profile-page customer-profile-edit">
+    <div class="case-layout customer-profile-edit-layout">
+        <div class="case-main">
+            <div class="page-head customer-profile-head">
+                <div>
+                    @if (showBackToOverview)
+                    {
+                        <a asp-action="Index" class="step-back project-flow-back">&larr; Profile</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Home" asp-action="Index" class="step-back project-flow-back">&larr; Dashboard</a>
+                    }
+                    <h1>Organisation &amp; contacts</h1>
+                    <p>Add or update your company details and key contacts. Required fields are marked with an asterisk.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-pad">
+                    @if (TempData["Welcome"] is string welcome)
+                    {
+                        <div class="alert alert-info" role="status">@welcome</div>
+                    }
+
+                    <form asp-action="Edit" method="post" class="profile-form">
+                        <div asp-validation-summary="ModelOnly" class="form-errors" role="alert"></div>
+
+                        <section class="profile-section" id="os-company" aria-labelledby="profile-company-heading">
+                            <h2 id="profile-company-heading" class="profile-section-title">Company / organisation details</h2>
+                            <div class="profile-form-grid">
+                                <div class="field">
+                                    <label asp-for="CompanyName" class="field-label req"></label>
+                                    <input asp-for="CompanyName" class="tinput" autocomplete="organization" />
+                                    <span asp-validation-for="CompanyName"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="CompanyRegistrationNumber" class="field-label req"></label>
+                                    <input asp-for="CompanyRegistrationNumber" class="tinput" autocomplete="off" />
+                                    <span asp-validation-for="CompanyRegistrationNumber"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="RegisteredCountryCode" class="field-label req"></label>
+                                    <select asp-for="RegisteredCountryCode" asp-items="countries" class="tinput">
+                                        <option value="">Select country</option>
+                                    </select>
+                                    <span asp-validation-for="RegisteredCountryCode"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="IndustrySector" class="field-label"></label>
+                                    <select asp-for="IndustrySector" asp-items="sectors" class="tinput">
+                                        <option value="">Select sector</option>
+                                    </select>
+                                    <span asp-validation-for="IndustrySector"></span>
+                                </div>
+                                <div class="field profile-form-grid--full">
+                                    <label asp-for="CompanyWebsite" class="field-label"></label>
+                                    <input asp-for="CompanyWebsite" class="tinput" placeholder="https://www.example.com" autocomplete="url" />
+                                    <span asp-validation-for="CompanyWebsite"></span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="profile-section" id="os-pc" aria-labelledby="profile-primary-heading">
+                            <h2 id="profile-primary-heading" class="profile-section-title">Primary project contact</h2>
+                            <p class="profile-section-hint">The main contact for queries and approvals during onboarding.</p>
+                            <div class="profile-form-grid">
+                                <div class="field">
+                                    <label asp-for="PrimaryContactFullName" class="field-label req"></label>
+                                    <input asp-for="PrimaryContactFullName" class="tinput" autocomplete="name" />
+                                    <span asp-validation-for="PrimaryContactFullName"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="PrimaryContactJobTitle" class="field-label"></label>
+                                    <input asp-for="PrimaryContactJobTitle" class="tinput" autocomplete="organization-title" />
+                                    <span asp-validation-for="PrimaryContactJobTitle"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="PrimaryContactEmail" class="field-label req"></label>
+                                    <input asp-for="PrimaryContactEmail" class="tinput" type="email" autocomplete="email" />
+                                    <span asp-validation-for="PrimaryContactEmail"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="PrimaryContactPhoneNumber" class="field-label"></label>
+                                    <input asp-for="PrimaryContactPhoneNumber" class="tinput" type="tel" autocomplete="tel" />
+                                    <span asp-validation-for="PrimaryContactPhoneNumber"></span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="profile-section" id="os-tc" aria-labelledby="profile-technical-heading">
+                            <h2 id="profile-technical-heading" class="profile-section-title">Technical / support contact</h2>
+                            <p class="profile-section-hint">Receives integration and configuration communications.</p>
+                            <div class="profile-form-grid">
+                                <div class="field">
+                                    <label asp-for="TechnicalContactFullName" class="field-label req"></label>
+                                    <input asp-for="TechnicalContactFullName" class="tinput" placeholder="Full name" autocomplete="off" />
+                                    <span asp-validation-for="TechnicalContactFullName"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="TechnicalContactJobTitle" class="field-label"></label>
+                                    <input asp-for="TechnicalContactJobTitle" class="tinput" placeholder="e.g. Solutions architect" autocomplete="off" />
+                                    <span asp-validation-for="TechnicalContactJobTitle"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="TechnicalContactEmail" class="field-label req"></label>
+                                    <input asp-for="TechnicalContactEmail" class="tinput" type="email" placeholder="tech@yourcompany.com" autocomplete="off" />
+                                    <span asp-validation-for="TechnicalContactEmail"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="TechnicalContactPhoneNumber" class="field-label"></label>
+                                    <input asp-for="TechnicalContactPhoneNumber" class="tinput" type="tel" placeholder="+44 …" autocomplete="off" />
+                                    <span asp-validation-for="TechnicalContactPhoneNumber"></span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="profile-section" id="os-hours" aria-labelledby="profile-hours-heading">
+                            <h2 id="profile-hours-heading" class="profile-section-title">Operating / payment hours</h2>
+                            <p class="profile-section-hint">Used to plan support and activation scheduling.</p>
+                            <div class="profile-form-grid">
+                                <div class="field">
+                                    <label asp-for="OperatingPattern" class="field-label"></label>
+                                    <select asp-for="OperatingPattern" asp-items="patterns" class="tinput">
+                                        <option value="">Select pattern</option>
+                                    </select>
+                                    <span asp-validation-for="OperatingPattern"></span>
+                                </div>
+                                <div class="field">
+                                    <label asp-for="PrimaryTimeZone" class="field-label"></label>
+                                    <select asp-for="PrimaryTimeZone" asp-items="timeZones" class="tinput">
+                                        <option value="">Select timezone</option>
+                                    </select>
+                                    <span asp-validation-for="PrimaryTimeZone"></span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="profile-section" id="os-partner" aria-labelledby="profile-partner-heading">
+                            <h2 id="profile-partner-heading" class="profile-section-title">Technology partner</h2>
+                            <div class="field profile-check-field">
+                                <label class="profile-check">
+                                    <input asp-for="HasTechnologyPartner" class="profile-check-input" type="checkbox" />
+                                    <span class="profile-check-label">A system integrator, reseller, or third-party consultant involved in this deployment.</span>
+                                </label>
+                            </div>
+                        </section>
+
+                        <div class="form-footer profile-form-footer">
+                            @if (showBackToOverview)
+                            {
+                                <a asp-action="Index" class="btn btn-link form-footer-back">&lt; Back to profile</a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Home" asp-action="Index" class="btn btn-link form-footer-back">&lt; Dashboard</a>
+                            }
+                            <button type="submit" class="btn btn-primary">Save profile</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

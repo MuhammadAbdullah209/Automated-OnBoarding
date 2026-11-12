@@ -1,0 +1,83 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Enums
+@{
+    // A standard build has no approval: it is submitted, validated and provisioned. A custom build still waits
+    // for approval. An account is only created when PCI Pal hosts the payment page, so an embedded (iFrame)
+    // project has no "Account creation" step. Same rule as provisioning (Model.RequiresAccount): a contact-centre
+    // project has no payment experience either, so it has no account step. Before Discovery is answered it is unknown.
+    var isCustom = Model.BuildType == BuildType.Custom;
+    var hasAccountStep = !Model.HasDiscovery || Model.RequiresAccount;
+
+    var stepList = isCustom
+        ? new List<string> { "Onboarding completed", "Internal review", "Information validation", "Pending approval", "Provisioning" }
+        : new List<string> { "Onboarding completed", "Submission", "Information validation", "Provisioning" };
+    if (hasAccountStep)
+    {
+        stepList.Add("Account creation");
+    }
+    stepList.Add("Completed");
+    var lifecycleSteps = stepList.ToArray();
+
+    int IndexOf(string label) => Math.Max(0, stepList.IndexOf(label));
+
+    var lifecycleCurrent = Model.Status switch
+    {
+        // Completed: every step is done, so nothing is current.
+        ProjectStatus.Completed => lifecycleSteps.Length,
+        // Once an internal user marks the account created it is ticked, and only completing the project is left.
+        ProjectStatus.AccountCreation => IndexOf("Account creation") + (ViewData["AccountCreated"] is true ? 1 : 0),
+        // A custom build waits in Provisioning for an internal user once its steps are done: Provisioning is ticked.
+        ProjectStatus.Provisioning => IndexOf("Provisioning") + (isCustom && ViewData["ProvisioningStepsComplete"] is true ? 1 : 0),
+        ProjectStatus.Approval => IndexOf(isCustom ? "Pending approval" : "Information validation"),
+        ProjectStatus.Submitted => 1,
+        _ => 0
+    };
+    var onboardingInProgress = Model.Status is ProjectStatus.InProgress && !Model.IsReadyToSubmit;
+
+    // On readiness (all steps done, not yet submitted), highlight internal review as the active phase.
+    var readinessPhase = Model.IsReadyToSubmit && !Model.IsSubmitted && Model.Status != ProjectStatus.Draft;
+    if (readinessPhase)
+    {
+        lifecycleCurrent = 1;
+    }
+}
+
+<div class="case-stepper" aria-label="Project lifecycle">
+    @for (var i = 0; i < lifecycleSteps.Length; i++)
+    {
+        var isComplete = i < lifecycleCurrent
+                         || (i == 0 && Model.IsReadyToSubmit && !onboardingInProgress)
+                         || (readinessPhase && i == 0);
+        var isCurrent = readinessPhase
+            ? i == 1
+            : i == lifecycleCurrent && !(i == 0 && onboardingInProgress);
+        if (i == 0 && onboardingInProgress && !readinessPhase)
+        {
+            isCurrent = true;
+            isComplete = false;
+        }
+
+        var stateClass = isCurrent ? "is-current" : isComplete ? "is-complete" : "is-upcoming";
+        <div class="case-step @stateClass">
+            <div class="case-step-marker" aria-hidden="true">
+                @if (isComplete && !isCurrent)
+                {
+                    <span class="case-step-check" aria-hidden="true">✓</span>
+                }
+                else
+                {
+                    <span class="case-step-num">@(i + 1)</span>
+                }
+            </div>
+            @* Once provisioning has started, its step opens the provisioning view (the finished result). *@
+            @if (lifecycleSteps[i] == "Provisioning" && Model.Status is ProjectStatus.Provisioning or ProjectStatus.AccountCreation or ProjectStatus.Completed)
+            {
+                <a asp-controller="Projects" asp-action="Provisioning" asp-route-id="@Model.Id" class="case-step-label case-step-link">@lifecycleSteps[i]</a>
+            }
+            else
+            {
+                <div class="case-step-label">@lifecycleSteps[i]</div>
+            }
+        </div>
+    }
+</div>

@@ -1,0 +1,18 @@
+@model (Guid ProjectId, Guid? CustomerId, string ButtonClass)
+@{
+    var btnClass = string.IsNullOrWhiteSpace(Model.ButtonClass) ? "btn btn-primary prov-launch-btn" : Model.ButtonClass;
+}
+@if (Model.CustomerId is Guid cid)
+{
+    <a asp-controller="Projects" asp-action="SetupDocument" asp-route-customerId="@cid" asp-route-id="@Model.ProjectId" target="_blank" rel="noopener" class="@btnClass">
+        <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+        Generate SDP
+    </a>
+}
+else
+{
+    <a asp-action="SetupDocument" asp-route-id="@Model.ProjectId" target="_blank" rel="noopener" class="@btnClass">
+        <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+        Generate SDP
+    </a>
+}

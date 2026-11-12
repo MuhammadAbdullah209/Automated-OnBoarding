@@ -1,0 +1,15 @@
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.Common.Helpers
+@model (ProjectStatus Status, ProjectStep Step, InformationRequestStatus? InformationRequest, bool AwaitingUsersCsv)
+@{
+    var c = ProjectOnboardingPresentation.Court(Model.Status, Model.Step, Model.InformationRequest, Model.AwaitingUsersCsv);
+    var who = c.Who;
+    var text = c.Text;
+    // The wording is the customer's ("You", "your tenant"); PCI Pal staff read it about the customer instead.
+    if (ViewData["ReadOnlyStaff"] is true)
+    {
+        if (c.Kind == "you") who = "Customer";
+        text = text.Replace("your ", "the customer’s ");
+    }
+}
+<span class="court @c.Kind" title="@text"><span class="who">@who</span><span class="court-t">@text</span></span>

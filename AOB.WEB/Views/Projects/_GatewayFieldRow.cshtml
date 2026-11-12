@@ -1,0 +1,59 @@
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@model (GatewayFieldOptionDto Field, ProjectGatewayConfigurationDto Config, string InputName, string IdPrefix)
+
+@{
+    var (f, config, inputName, idPrefix) = Model;
+    var locked = !f.IsSelectable;
+    var selected = inputName == "SelectedInputFields"
+        ? config.SelectedInputFields.Contains(f.Id)
+        : config.SelectedOutputFields.Contains(f.Id);
+    var tagClass = f.FieldType switch
+    {
+        GatewayFieldType.Required => "blue",
+        GatewayFieldType.Conditional => "you",
+        _ => ""
+    };
+    var tagLabel = f.FieldType switch
+    {
+        GatewayFieldType.Required => "Required",
+        GatewayFieldType.Conditional => "Conditional",
+        _ => "Optional"
+    };
+    const string checkSvg = @"<svg class=""i xs"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2.5""><path d=""M20 6 9 17l-5-5""/></svg>";
+    var fieldId = $"{idPrefix}_{f.Id}";
+}
+
+@if (locked)
+{
+    <div class="frow frow--static">
+        <span class="gateway-check gateway-check--locked" aria-hidden="true" title="Always included">@Html.Raw(checkSvg)</span>
+        <div class="frow-body">
+            <div class="frow-title">
+                <span class="fk">@f.Name</span>
+                <span class="tag @tagClass">@tagLabel</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(f.Description))
+            {
+                <div class="xsmall muted">@f.Description</div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <label class="frow check gateway-field-row" for="@fieldId">
+        <input type="checkbox" name="@inputName" id="@fieldId" value="@f.Id" @(selected ? "checked" : null) />
+        <span class="box">@Html.Raw(checkSvg)</span>
+        <div class="frow-body">
+            <div class="frow-title">
+                <span class="fk">@f.Name</span>
+                <span class="tag @tagClass">@tagLabel</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(f.Description))
+            {
+                <div class="xsmall muted">@f.Description</div>
+            }
+        </div>
+    </label>
+}

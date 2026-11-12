@@ -1,0 +1,44 @@
+@model (Guid ProjectId, IReadOnlyList<AOB.BAL.DTOs.Projects.InformationResponseDto> History)
+@using AOB.WEB.Helpers
+@*
+    Earlier responses to one requested document (before the latest one), newest first, with how each was reviewed.
+    Used on the staff document requests card and the customer's Provide information page.
+*@
+@{
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+}
+<details class="info-history">
+    <summary>Previous responses (@Model.History.Count)</summary>
+    <ol class="info-history-list">
+        @foreach (var response in Model.History)
+        {
+            <li class="info-history-item">
+                <div class="info-history-head">
+                    <span>Sent @response.SubmittedAt.ToLocalTime().ToString("d MMM yyyy, HH:mm")</span>
+                    @if (response.Outcome is { } outcome)
+                    {
+                        <span class="badge badge-sm @InformationRequestUi.ItemBadge(outcome)"><span class="bd"></span>@InformationRequestUi.ItemLabel(outcome)</span>
+                    }
+                </div>
+                @if (response.DocumentId is Guid docId)
+                {
+                    <div class="info-item-line">
+                        <a asp-controller="Projects" asp-action="DownloadInformationDocument" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.ProjectId" asp-route-documentId="@docId" class="link mono">@(response.DocumentName ?? "Document")</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="info-item-line muted">Note only, no document.</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(response.Note))
+                {
+                    <div class="info-item-line" style="white-space:pre-line">@response.Note</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(response.ReviewNote))
+                {
+                    <div class="info-item-line"><span class="info-item-k">Reviewer</span> @response.ReviewNote</div>
+                }
+            </li>
+        }
+    </ol>
+</details>

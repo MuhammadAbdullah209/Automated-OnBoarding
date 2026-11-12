@@ -1,0 +1,438 @@
+@model AOB.BAL.DTOs.Projects.ProjectTechnicalEnvironmentDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@{
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = "Technical Environment";
+    var project = (AOB.BAL.DTOs.Projects.ProjectOverviewDto)ViewData["Project"]!;
+    ViewData["FlowSubtitle"] = $"Technical environment · {ProjectOptions.ProjectStatusLabels[project.Status]}";
+    ViewData["DocSectionNo"] = "02";
+    ViewData["DocTitle"] = "Technical environment";
+    ViewData["DocLede"] = "The systems and PCI Pal regions you'll use, and whether your network allows outbound connections.";
+    ViewData["FlowBackAction"] = "Discovery";
+    ViewData["FlowBackLabel"] = "Discovery";
+
+    // Defaults for a first visit, from the chosen payment regions. Staging: EMEA -> EU-West-1, North America ->
+    // CA-Central-1, Asia-Pacific -> AP-Southeast-2. Production: EMEA -> EU-West-2, North America -> US-East-1,
+    // Asia-Pacific -> AP-Southeast-2.
+    var stagingFromPayment = Model.PaymentRegions
+        .Where(ProjectOptions.DefaultStagingRegionFor.ContainsKey)
+        .Select(r => ProjectOptions.DefaultStagingRegionFor[r])
+        .Distinct()
+        .ToList();
+    var productionFromPayment = Model.PaymentRegions
+        .Where(ProjectOptions.DefaultProductionRegionsFor.ContainsKey)
+        .SelectMany(r => ProjectOptions.DefaultProductionRegionsFor[r])
+        .Distinct()
+        .ToList();
+
+    // Payment regions drive the default staging/production picks. Drop old auto selections (e.g. EU-Central-1
+    // when only EMEA is chosen) but keep any production region the customer added outside that default set.
+    var defaultProductionPool = ProjectOptions.DefaultProductionRegionsFor.Values.SelectMany(r => r).Distinct().ToHashSet();
+    var formInvalid = !ViewData.ModelState.IsValid;
+    // Defaults from payment regions apply on first visit only — not when the user cleared a list and validation failed.
+    var stagingSelected = Model.StagingRegions.Count > 0
+        ? SyncRegionSelection(Model.StagingRegions, stagingFromPayment, ProjectOptions.StagingRegionLabels.Keys.ToHashSet())
+        : formInvalid ? Model.StagingRegions : stagingFromPayment;
+    var productionSelected = Model.ProductionRegions.Count > 0
+        ? SyncRegionSelection(Model.ProductionRegions, productionFromPayment, defaultProductionPool)
+        : formInvalid ? Model.ProductionRegions : productionFromPayment;
+    var applyStagingDefaultsFromPayment = !formInvalid && Model.StagingRegions.Count == 0;
+    var applyProductionDefaultsFromPayment = !formInvalid && Model.ProductionRegions.Count == 0;
+
+    // What the right-hand panel needs to list the IP addresses for the regions that are ticked.
+    static object Net(RegionNetwork r) => new { name = r.Name, ips = r.IpAddresses };
+    var network = new
+    {
+        labels = ProjectOptions.PciPalRegionLabels.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value),
+        defaults = new
+        {
+            staging = ProjectOptions.DefaultStagingRegionFor.ToDictionary(kv => kv.Key.ToString(), kv => new[] { kv.Value.ToString() }),
+            production = ProjectOptions.DefaultProductionRegionsFor.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value.Select(v => v.ToString()).ToArray())
+        },
+        staging = new
+        {
+            admin = Net(PciPalNetwork.StagingAdmin),
+            regions = PciPalNetwork.Staging.ToDictionary(kv => kv.Key.ToString(), kv => Net(kv.Value))
+        },
+        production = new
+        {
+            admin = Net(PciPalNetwork.ProductionAdmin),
+            regions = PciPalNetwork.Production.ToDictionary(kv => kv.Key.ToString(), kv => Net(kv.Value))
+        }
+    };
+}
+
+@functions
+{
+    /// <summary>
+    /// Keeps manual picks outside <paramref name="defaultPool"/>, and replaces default-pool picks with
+    /// <paramref name="fromPayment"/> (e.g. EMEA -> EU-West-2 only).
+    /// </summary>
+    static List<PciPalRegion> SyncRegionSelection(
+        IReadOnlyList<PciPalRegion> saved,
+        IReadOnlyList<PciPalRegion> fromPayment,
+        HashSet<PciPalRegion> defaultPool)
+    {
+        var manual = saved.Where(r => !defaultPool.Contains(r)).ToList();
+        return fromPayment.Concat(manual).Distinct().ToList();
+    }
+}
+
+<form asp-action="TechnicalEnvironment" asp-route-id="@project.Id" method="post" class="doc rise project-flow-form project-flow-form--technical">
+    <partial name="_ProjectDocHeader" />
+    <div class="ctxwrap">
+        <div class="note ctxnote">
+            <span class="ni" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            </span>
+            <div>
+                <div class="nt">Regions and network</div>
+                <div class="nd">Pick where PCI Pal runs and whether your network can reach us. IP addresses for your firewall appear at the bottom of this section.</div>
+            </div>
+        </div>
+    </div>
+    <div class="doc-paper project-flow-primary">
+        <div asp-validation-summary="ModelOnly" class="form-errors" role="alert"></div>
+
+        @if (project.CrmSystem == CrmSystem.Crm)
+        {
+            <section class="flow-section flow-section--first qrow">
+                <h5 class="flow-section-title req qt">Business system or CRM</h5>
+                <p class="flow-section-hint qd">The main application your team uses.</p>
+                <div class="qctl">
+                    <select asp-for="CrmPlatform" asp-items="Html.EnumSelectItems(ProjectOptions.CrmPlatformLabels)" class="form-select">
+                        <option value="">Select a system</option>
+                    </select>
+                    <span asp-validation-for="CrmPlatform" class="text-danger"></span>
+                </div>
+            </section>
+        }
+
+        <section class="flow-section qrow @(project.CrmSystem != CrmSystem.Crm ? "flow-section--first" : "")">
+            <h5 class="flow-section-title qt">
+                Where do your customers pay?
+                <span class="opt">Optional</span>
+            </h5>
+            <p class="flow-section-hint qd">Narrows the PCI Pal regions offered below.</p>
+            <div class="qctl">
+                @Html.EnumCardCheckboxes("PaymentRegions", ProjectOptions.PaymentRegionLabels, Model.PaymentRegions, meta: null, layout: "grid-3-proto")
+                <span asp-validation-for="PaymentRegions" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title req qt">Staging regions</h5>
+            <p class="flow-section-hint qd">Where PCI Pal runs your test environment.</p>
+            <div class="qctl">
+                @Html.EnumMultiSelect("StagingRegions", ProjectOptions.StagingRegionLabels, stagingSelected, placeholder: "Select staging regions")
+                <span asp-validation-for="StagingRegions" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title req qt">Production regions</h5>
+            <p class="flow-section-hint qd">Where PCI Pal runs your live environment.</p>
+            <div class="qctl">
+                @Html.EnumMultiSelect("ProductionRegions", ProjectOptions.ProductionRegionLabels, productionSelected, placeholder: "Select production regions")
+                <p class="xsmall muted" style="margin:8px 0 0">* Regions outside EMEA are placeholders until PCI Pal confirms the list.</p>
+                <span asp-validation-for="ProductionRegions" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title req qt">Network access readiness</h5>
+            <p class="flow-section-hint qd">PCI Pal needs your systems to reach its endpoints.</p>
+            <div class="qctl">
+                <select asp-for="OutboundAccess" asp-items="Html.EnumSelectItems(ProjectOptions.OutboundAccessLabels)" class="form-select p-dropdown" id="OutboundAccess">
+                            <option value="" selected>Select an answer</option>
+   
+                </select>
+                <span asp-validation-for="OutboundAccess" class="text-danger"></span>
+                <div id="networkBlockedNote" class="note you reveal-block @(Model.OutboundAccess == OutboundAccess.NotPermitted ? "" : "is-hidden")" style="margin-top:12px">
+                    <div>
+                        <div class="nt">Your network team will need to open access</div>
+                        <div class="nd">You can still continue. Share the IP addresses below with your network team before testing.</div>
+                    </div>
+                </div>
+                <div id="networkUnsureNote" class="note you reveal-block @(Model.OutboundAccess == OutboundAccess.NotSure ? "" : "is-hidden")" style="margin-top:12px">
+                    <div>
+                        <div class="nt">Check with your network team</div>
+                        <div class="nd">You can still continue. Share the IP addresses below with your network team before testing.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="tech-env-ip-card">
+            <partial name="_TechnicalEnvironmentIpPanel" model="Model" />
+        </div>
+    </div>
+    <partial name="_ProjectFlowActionBar" />
+</form>
+
+<script type="application/json" id="ip-network-data">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(network))</script>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+
+        (function () {
+            var data = JSON.parse(document.getElementById('ip-network-data').textContent);
+            var STAGING = 'StagingRegions_', PRODUCTION = 'ProductionRegions_', PAYMENT = 'PaymentRegions_';
+            var COPY_ICON = '<svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>';
+
+            function box(prefix, key) { return document.getElementById(prefix + key); }
+            function ticked(prefix) {
+                return Array.prototype.slice.call(document.querySelectorAll('input[name="' + prefix.replace('_', '') + '"]:checked'))
+                    .map(function (b) { return b.value; });
+            }
+            function setTicked(prefix, key, on) {
+                var b = box(prefix, key);
+                if (!b || b.checked === on) return;
+                b.checked = on;
+                // The multi-select script keeps its button text and chips in step with the tick boxes on "change".
+                b.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            function el(tag, className, text) {
+                var e = document.createElement(tag);
+                if (className) e.className = className;
+                if (text !== undefined) e.textContent = text;
+                return e;
+            }
+
+            function copyText(text) {
+                if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+                var area = document.createElement('textarea');
+                area.value = text;
+                area.setAttribute('readonly', '');
+                area.style.position = 'fixed';
+                area.style.left = '-9999px';
+                document.body.appendChild(area);
+                area.select();
+                try { document.execCommand('copy'); } finally { area.remove(); }
+                return Promise.resolve();
+            }
+
+            function flashCopyButton(btn, copiedLabel, defaultLabel) {
+                btn.classList.add('is-copied');
+                btn.setAttribute('aria-label', copiedLabel);
+                setTimeout(function () {
+                    btn.classList.remove('is-copied');
+                    btn.setAttribute('aria-label', defaultLabel);
+                }, 1200);
+            }
+
+            function envLabel(env) {
+                return env === 'staging' ? 'Staging' : 'Production';
+            }
+
+            function regionDisplayName(baseName, label) {
+                if (!baseName) return label;
+                var lower = baseName.toLowerCase();
+                if (lower.indexOf(label.toLowerCase()) >= 0) return baseName;
+                return baseName + ' – ' + label;
+            }
+
+            function ipCopyButton(text, ariaLabel) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('aria-label', ariaLabel);
+                btn.innerHTML = COPY_ICON;
+                btn.addEventListener('click', function () {
+                    copyText(text).then(function () {
+                        flashCopyButton(btn, 'Copied', ariaLabel);
+                    });
+                });
+                return btn;
+            }
+
+            function ipRow(ip) {
+                var row = el('div', 'ip');
+                var mono = el('span', 'mono');
+                mono.textContent = ip;
+                row.appendChild(mono);
+                row.appendChild(ipCopyButton(ip, 'Copy ' + ip));
+                return row;
+            }
+
+            function regionBlock(displayName, ips, options) {
+                options = options || {};
+                var grp = el('div', 'ipgrp');
+                var gt = el('div', 'gt');
+                gt.appendChild(document.createTextNode(displayName));
+                if (options.always) {
+                    var tag = el('span', 'tag');
+                    tag.textContent = 'Always required';
+                    gt.appendChild(tag);
+                }
+                grp.appendChild(gt);
+                if (options.pending) {
+                    var pending = el('div', 'small muted');
+                    pending.style.marginTop = '4px';
+                    pending.textContent = 'PCI Pal will confirm these addresses.';
+                    grp.appendChild(pending);
+                } else if (ips && ips.length) {
+                    ips.forEach(function (ip) { grp.appendChild(ipRow(ip)); });
+                }
+                return grp;
+            }
+
+            function render(env, prefix) {
+                var holder = document.querySelector('[data-ip-panel="' + env + '"] [data-ip-list]');
+                holder.textContent = '';
+                var set = data[env];
+                var label = envLabel(env);
+                holder.appendChild(regionBlock('Admin region – ' + label, set.admin.ips || [], { always: true }));
+
+                ticked(prefix).forEach(function (key) {
+                    var info = set.regions[key];
+                    var baseName = info ? info.name : (data.labels[key] || key);
+                    var regionTitle = regionDisplayName(baseName, label);
+                    if (info && info.ips && info.ips.length) {
+                        holder.appendChild(regionBlock(regionTitle, info.ips));
+                    } else {
+                        holder.appendChild(regionBlock(regionTitle, [], { pending: true }));
+                    }
+                });
+            }
+
+            function activeIpEnv() {
+                var tab = document.querySelector('[data-ip-tab][aria-selected="true"]');
+                return tab ? tab.getAttribute('data-ip-tab') : 'staging';
+            }
+
+            function allIpsForEnv(env, prefix) {
+                var set = data[env];
+                var ips = (set.admin.ips || []).slice();
+                ticked(prefix).forEach(function (key) {
+                    var info = set.regions[key];
+                    if (info && info.ips) ips = ips.concat(info.ips);
+                });
+                return ips;
+            }
+
+            function syncCopyAll() {
+                var btn = document.getElementById('ipCopyAll');
+                if (!btn) return;
+                var env = activeIpEnv();
+                var prefix = env === 'staging' ? STAGING : PRODUCTION;
+                var ips = allIpsForEnv(env, prefix);
+                var label = envLabel(env);
+                var copyLabel = 'Copy all ' + label.toLowerCase() + ' addresses';
+                btn.hidden = ips.length === 0;
+                var labelEl = btn.querySelector('.ip-copy-all-label');
+                if (labelEl) labelEl.textContent = copyLabel;
+                btn.setAttribute('aria-label', copyLabel);
+                btn.onclick = function () {
+                    copyText(ips.join('\n')).then(function () {
+                        if (labelEl) {
+                            var prev = labelEl.textContent;
+                            labelEl.textContent = 'Copied';
+                            setTimeout(function () { labelEl.textContent = prev; }, 1200);
+                        }
+                    });
+                };
+            }
+
+            function renderAll() {
+                render('staging', STAGING);
+                render('production', PRODUCTION);
+                syncCopyAll();
+            }
+
+            function defaultPool(defaults) {
+                var pool = [];
+                Object.keys(defaults).forEach(function (paymentKey) {
+                    defaults[paymentKey].forEach(function (region) {
+                        if (pool.indexOf(region) < 0) pool.push(region);
+                    });
+                });
+                return pool;
+            }
+
+            function desiredFromPayment(defaults) {
+                var desired = [];
+                Object.keys(defaults).forEach(function (paymentKey) {
+                    var chip = box(PAYMENT, paymentKey);
+                    if (!chip || !chip.checked) return;
+                    defaults[paymentKey].forEach(function (region) {
+                        if (desired.indexOf(region) < 0) desired.push(region);
+                    });
+                });
+                return desired;
+            }
+
+            // Payment regions drive default staging/production picks; clear regions no longer implied (e.g. EU-Central-1 for EMEA-only).
+            function syncFromPayment(prefix, defaults) {
+                var pool = defaultPool(defaults);
+                var desired = desiredFromPayment(defaults);
+                document.querySelectorAll('input[name="' + prefix.replace('_', '') + '"]').forEach(function (b) {
+                    if (pool.indexOf(b.value) < 0) return;
+                    setTicked(prefix, b.value, desired.indexOf(b.value) >= 0);
+                });
+            }
+
+            function wirePaymentSync(prefix, defaults) {
+                Object.keys(defaults).forEach(function (paymentKey) {
+                    var chip = box(PAYMENT, paymentKey);
+                    if (!chip) return;
+                    chip.addEventListener('change', function () { syncFromPayment(prefix, defaults); });
+                });
+            }
+            wirePaymentSync(STAGING, data.defaults.staging);
+            wirePaymentSync(PRODUCTION, data.defaults.production);
+            @if (applyStagingDefaultsFromPayment)
+            {
+                @:syncFromPayment(STAGING, data.defaults.staging);
+            }
+            @if (applyProductionDefaultsFromPayment)
+            {
+                @:syncFromPayment(PRODUCTION, data.defaults.production);
+            }
+
+            // Keep the panel in step with every staging / production change.
+            document.querySelectorAll('input[name="StagingRegions"], input[name="ProductionRegions"]').forEach(function (b) {
+                b.addEventListener('change', renderAll);
+            });
+
+            function switchIpTab(env) {
+                document.querySelectorAll('[data-ip-tab]').forEach(function (t) {
+                    t.setAttribute('aria-selected', t.getAttribute('data-ip-tab') === env ? 'true' : 'false');
+                });
+                document.querySelectorAll('.ip-panel[data-ip-panel]').forEach(function (panel) {
+                    panel.classList.toggle('is-hidden', panel.getAttribute('data-ip-panel') !== env);
+                });
+                syncCopyAll();
+            }
+
+            renderAll();
+            switchIpTab(activeIpEnv());
+
+            document.querySelectorAll('[data-ip-tab]').forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    switchIpTab(tab.getAttribute('data-ip-tab'));
+                });
+            });
+
+            var outbound = document.getElementById('OutboundAccess');
+            var allowNote = document.getElementById('ipAllowlistNote');
+            var blockedNote = document.getElementById('networkBlockedNote');
+            var unsureNote = document.getElementById('networkUnsureNote');
+            if (outbound) {
+                outbound.addEventListener('change', function () {
+                    if (allowNote) {
+                        allowNote.classList.toggle('is-hidden', outbound.value !== 'RequiresAllowList');
+                    }
+                    if (blockedNote) {
+                        blockedNote.classList.toggle('is-hidden', outbound.value !== 'NotPermitted');
+                    }
+                    if (unsureNote) {
+                        unsureNote.classList.toggle('is-hidden', outbound.value !== 'NotSure');
+                    }
+                });
+            }
+        })();
+    </script>
+}

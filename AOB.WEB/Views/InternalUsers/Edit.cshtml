@@ -1,0 +1,62 @@
+@model AOB.WEB.ViewModels.Admin.EditInternalUserViewModel
+@{
+    var userId = (Guid)ViewData["UserId"]!;
+    ViewData["Title"] = "Edit internal user";
+    ViewData["Crumbs"] = "Internal users / Edit internal user";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-action="Index">Internal users</a><span class="crumb-sep" aria-hidden="true">›</span><span>Edit internal user</span>
+            </nav>
+            <h1 class="h1">Edit internal user</h1>
+            <p class="lede" style="margin-top:4px">Correct their name or email before they verify their account.</p>
+        </div>
+    </div>
+
+    <div class="page-stack form-page">
+        <div class="note you" role="status">
+            <span class="ni" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></svg>
+            </span>
+            <div>
+                <div class="nt">This user hasn't verified their email yet</div>
+                <div class="nd">When you save, we email a new verification link to the address below (if the user is active). Earlier links stop working.</div>
+            </div>
+        </div>
+
+        <form asp-action="Edit" asp-route-id="@userId" method="post" autocomplete="off" class="sheet sheet-form" novalidate>
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3">Staff details</h2>
+                    <p class="small muted">All fields are required.</p>
+                </div>
+            </div>
+            <div class="sheet-b">
+                <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+                <div class="field">
+                    <label asp-for="FullName" class="field-label req"></label>
+                    <input asp-for="FullName" class="tinput" autocomplete="off" />
+                    <span asp-validation-for="FullName"></span>
+                </div>
+                <div class="field">
+                    <label asp-for="Email" class="field-label req"></label>
+                    <input asp-for="Email" class="tinput" type="email" autocomplete="off" />
+                    <span asp-validation-for="Email"></span>
+                </div>
+            </div>
+            <div class="sheet-f">
+                <a asp-action="Index" class="btn btn-quiet">Cancel</a>
+                <span class="spacer"></span>
+                <button type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

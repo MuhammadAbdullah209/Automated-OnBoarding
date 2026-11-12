@@ -1,0 +1,48 @@
+@model AOB.BAL.DTOs.Projects.FlowLaunchDto
+@{
+    ViewData["Title"] = "Test your payment flow";
+    ViewData["Crumbs"] = "Projects / " + Model.ProjectName + " / Payment flow";
+    ViewData["FullBleed"] = true;
+}
+
+<section class="band">
+    <div class="wrap" style="padding-bottom:22px">
+        <div class="crumb">
+            <a asp-action="Index">Projects</a>
+            <span class="crumb-sep" aria-hidden="true">›</span>
+            <a asp-action="Details" asp-route-id="@Model.ProjectId">@Model.ProjectName</a>
+            <span class="crumb-sep" aria-hidden="true">›</span>
+            <span>Payment flow</span>
+        </div>
+        <div class="ws-head rise">
+            <div class="ttl">
+                <h1 class="h1">Test your payment flow</h1>
+                <p class="lede" style="margin-top:4px">This is the page your agents will see, running in your staging tenant.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="wrap" style="padding-block:28px 64px">
+    <div class="console">
+        <div class="console-bar">
+            <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">Session @Model.SessionId@(Model.LinkId is null ? "" : " · Link " + Model.LinkId)</span>
+        </div>
+        <iframe name="pcipal-flow" title="PCI Pal payment flow"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                style="display:block;width:100%;height:75vh;border:0;border-radius:6px;background:#fff"></iframe>
+    </div>
+
+    @* PCI Pal opens the session when the tokens are POSTed to the framed page, so this form loads it into the iframe. *@
+    <form id="pcipal-flow-form" method="post" action="@Model.FrameUrl" target="pcipal-flow" asp-antiforgery="false" style="display:none">
+        <input type="hidden" name="x-bearer-token" value="@Model.AccessToken" />
+        <input type="hidden" name="x-refresh-token" value="@Model.RefreshToken" />
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('pcipal-flow-form').submit();
+    </script>
+}

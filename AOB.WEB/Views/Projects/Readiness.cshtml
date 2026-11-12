@@ -1,0 +1,257 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using System.Security.Claims
+@{
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = "Readiness Check";
+    ViewData["FlowSubtitle"] = $"Readiness check · {ProjectOptions.ProjectStatusLabels[Model.Status]}";
+    ViewData["DocSectionNo"] = "05";
+    ViewData["DocTitle"] = "Readiness check";
+    ViewData["DocLede"] = "Every answer in one place before you submit. Submitting locks your answers.";
+    ViewData["DocRequiredNote"] = false;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var sections = new (int No, string Title, string Action, bool Done)[]
+    {
+        (1, "Business & use-case discovery", "Discovery", Model.HasDiscovery),
+        (2, "Technical environment", "TechnicalEnvironment", Model.HasTechnicalEnvironment),
+        (3, "Payment configuration", "PaymentConfiguration", Model.HasPaymentConfiguration),
+        (4, "Adaptive configuration", "GatewayConfiguration", Model.HasGatewayConfiguration)
+    };
+    var submitNotifyEmail = User.FindFirstValue(ClaimTypes.Email)
+        ?? User.Identity?.Name
+        ?? "your email address";
+}
+
+<div class="doc rise project-flow-form doc--flow-actions project-flow-form--readiness">
+    <partial name="_ProjectDocHeader" />
+    <div class="ctxwrap">
+        @if (!Model.IsSubmitted && Model.IsReadyToSubmit)
+        {
+            <div class="note ok readiness-status-banner">
+                <span class="ni readiness-status-icon readiness-status-icon--ok" aria-hidden="true">
+                    <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                </span>
+                <div>
+                    <div class="nt">Everything is answered</div>
+                    <div class="nd">You can save as draft and return later, or submit now to start setup. After you submit, your answers are read-only.</div>
+                </div>
+            </div>
+        }
+        <div class="note ctxnote">
+            <span class="ni" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </span>
+            <div>
+                <div class="nt">What submitting does</div>
+                <div class="nd">Your answers lock and go to PCI Pal. Standard requirements start provisioning automatically; others get a specialist review first.</div>
+            </div>
+        </div>
+    </div>
+    <div class="doc-paper project-flow-primary">
+        @if (!Model.IsSubmitted && !Model.IsReadyToSubmit)
+        {
+            <div class="note you readiness-status-banner">
+                <span class="ni readiness-status-icon readiness-status-icon--warn" aria-hidden="true">
+                    <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4M12 17h.01"/></svg>
+                </span>
+                <div>
+                    <div class="nt">A few answers are missing</div>
+                    <div class="nd">Complete the items below to submit.</div>
+                </div>
+            </div>
+        }
+        <div class="readiness-rsecs">
+            @foreach (var s in sections)
+            {
+                var tickClass = s.Done ? "on" : "warn";
+                var statusText = s.Done ? "All answered" : "Answers missing";
+                var btnLabel = s.Done ? "Review" : "Open";
+                <div class="rsec">
+                    <span class="tick rsec-tick @tickClass" aria-hidden="true">
+                        @if (s.Done)
+                        {
+                            <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                        }
+                        else
+                        {
+                            <text>!</text>
+                        }
+                    </span>
+                    <div class="rsec-body">
+                        <div class="rsec-title">@s.No.ToString("00") · @s.Title</div>
+                        <div class="small rsec-status @(s.Done ? "muted" : "rsec-status--warn")">@statusText</div>
+                    </div>
+                    @if (!Model.IsSubmitted)
+                    {
+                        @if (actingCustomerId is Guid customerId)
+                        {
+                            <a asp-controller="Projects" asp-action="@s.Action" asp-route-customerId="@customerId" asp-route-id="@Model.Id" class="btn btn-sm btn-cta btn-rsec-action">@btnLabel</a>
+                        }
+                        else
+                        {
+                            <a asp-action="@s.Action" asp-route-id="@Model.Id" class="btn btn-sm btn-cta btn-rsec-action">@btnLabel</a>
+                        }
+                    }
+                </div>
+            }
+        </div>
+
+        @if (!Model.IsSubmitted && Model.UsesWebCallback && !Model.HasApiDocumentation)
+        {
+            <div class="note you readiness-inline-note">
+                <span class="ni" aria-hidden="true">
+                    <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                </span>
+                <div>
+                    <div class="nt">API documentation</div>
+                    <div class="nd">
+                        You chose Web Callback but have not uploaded your API documentation yet. You can still submit, but we will need it to configure the callback.
+                        @if (actingCustomerId is Guid cid)
+                        {
+                            <a asp-controller="Projects" asp-action="GatewayConfiguration" asp-route-customerId="@cid" asp-route-id="@Model.Id" class="link">Upload it now</a>
+                        }
+                        else
+                        {
+                            <a asp-action="GatewayConfiguration" asp-route-id="@Model.Id" class="link">Upload it now</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.IsSubmitted)
+        {
+            <div class="note ok readiness-inline-note">
+                <span class="ni readiness-status-icon readiness-status-icon--ok" aria-hidden="true">
+                    <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                </span>
+                <div>
+                    <div class="nt">Submitted</div>
+                    <div class="nd">
+                        We’ve emailed a confirmation. Your details are now read-only.
+                        @if (actingCustomerId is Guid cid2)
+                        {
+                            <a asp-controller="Projects" asp-action="Summary" asp-route-customerId="@cid2" asp-route-id="@Model.Id" class="link">View your details</a>
+                        }
+                        else
+                        {
+                            <a asp-action="Summary" asp-route-id="@Model.Id" class="link">View your details</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="actionbar actionbar--dock">
+        @if (actingCustomerId is Guid customerIdBack)
+        {
+            <a asp-controller="Projects" asp-action="GatewayConfiguration" asp-route-customerId="@customerIdBack" asp-route-id="@Model.Id" class="btn btn-text">&lt; Adaptive configuration</a>
+        }
+        else
+        {
+            <a asp-action="GatewayConfiguration" asp-route-id="@Model.Id" class="btn btn-text">&lt; Adaptive configuration</a>
+        }
+        <span class="spacer"></span>
+        @if (!readOnlyStaff && !Model.IsSubmitted && Model.IsReadyToSubmit)
+        {
+            <form asp-action="SaveAsDraft" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-quiet">Save as draft</button>
+            </form>
+            <form asp-action="Submit" asp-route-id="@Model.Id" method="post" class="d-inline" id="readinessSubmitForm">
+                @Html.AntiForgeryToken()
+                <button type="button" class="btn btn-primary" id="readinessSubmitOpen" aria-haspopup="dialog">
+                    <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Submit for setup
+                </button>
+            </form>
+        }
+        else if (!Model.IsSubmitted && !readOnlyStaff)
+        {
+            <span class="small muted">Complete the missing steps above before you can submit.</span>
+        }
+        else if (readOnlyStaff)
+        {
+            <span class="small muted">Internal view — read only</span>
+        }
+    </div>
+</div>
+
+<dialog class="submit-setup-dialog" id="readinessSubmitDialog" aria-labelledby="readinessSubmitTitle">
+    <div class="submit-setup-dialog-inner">
+        <div class="submit-setup-dialog-head">
+            <span class="submit-setup-dialog-icon" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2"/></svg>
+            </span>
+            <div>
+                <h2 class="submit-setup-dialog-title" id="readinessSubmitTitle">Submit “@Model.Name” for setup?</h2>
+                <p class="submit-setup-dialog-lede">Your answers become read-only. To change one later, contact PCI Pal support.</p>
+            </div>
+        </div>
+        <ol class="submit-setup-steps">
+            <li>
+                <span class="submit-setup-step-no">1</span>
+                <span class="submit-setup-step-text">PCI Pal checks whether your requirements are standard.</span>
+            </li>
+            <li>
+                <span class="submit-setup-step-no">2</span>
+                <span class="submit-setup-step-text">Standard setups go straight to automatic provisioning. Anything else gets a specialist review and approval first.</span>
+            </li>
+            <li>
+                <span class="submit-setup-step-no">3</span>
+                <span class="submit-setup-step-text">We email <strong>@submitNotifyEmail</strong> at each step.</span>
+            </li>
+        </ol>
+        <div class="submit-setup-dialog-actions">
+            <button type="button" class="btn btn-cta btn-submit-keep" data-submit-setup-close>Keep editing</button>
+            <button type="button" class="btn btn-primary" data-submit-setup-confirm>Submit project</button>
+        </div>
+    </div>
+</dialog>
+
+@section Scripts {
+    <script>
+        (function () {
+            var openBtn = document.getElementById('readinessSubmitOpen');
+            var dialog = document.getElementById('readinessSubmitDialog');
+            var form = document.getElementById('readinessSubmitForm');
+            if (!openBtn || !dialog || !form) return;
+
+            openBtn.addEventListener('click', function () {
+                if (typeof dialog.showModal === 'function') {
+                    dialog.showModal();
+                } else {
+                    form.requestSubmit ? form.requestSubmit() : form.submit();
+                }
+            });
+
+            dialog.querySelectorAll('[data-submit-setup-close]').forEach(function (btn) {
+                btn.addEventListener('click', function () { dialog.close(); });
+            });
+
+            dialog.addEventListener('cancel', function (e) {
+                e.preventDefault();
+                dialog.close();
+            });
+
+            dialog.addEventListener('click', function (e) {
+                if (e.target === dialog) dialog.close();
+            });
+
+            var confirmBtn = dialog.querySelector('[data-submit-setup-confirm]');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', function () {
+                    dialog.close();
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        form.submit();
+                    }
+                });
+            }
+        })();
+    </script>
+}

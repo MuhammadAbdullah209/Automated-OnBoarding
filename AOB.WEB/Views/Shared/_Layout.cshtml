@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+@{
+    var controller = ViewContext.RouteData.Values["controller"] as string;
+    var action = ViewContext.RouteData.Values["action"] as string;
+    var isSignedIn = User.Identity?.IsAuthenticated == true;
+    var displayName = User.Identity?.Name ?? string.Empty;
+    var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+    var initials = string.Concat(displayName
+        .Split(new[] { ' ', '.', '@' }, StringSplitOptions.RemoveEmptyEntries)
+        .Take(2)
+        .Select(part => char.ToUpperInvariant(part[0])));
+    if (string.IsNullOrEmpty(initials)) { initials = "?"; }
+
+    var userCompanyName = ViewData["UserCompanyName"] as string;
+    var showCompanySubline = !string.IsNullOrWhiteSpace(userCompanyName)
+        && !string.Equals(userCompanyName.Trim(), displayName.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    string NavCurrent(string ctrl, string? act = null) =>
+        string.Equals(controller, ctrl, StringComparison.OrdinalIgnoreCase)
+        && (act == null || string.Equals(action, act, StringComparison.OrdinalIgnoreCase))
+            ? "page" : null;
+
+    string? OrgNavCurrent() =>
+        string.Equals(controller, "CustomerProfile", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(controller, "CustomerDocuments", StringComparison.OrdinalIgnoreCase)
+            ? "page" : null;
+}
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#bdd1f1" />
+    <title>@ViewData["Title"] — PCI Pal Onboarding</title>
+    <link rel="stylesheet" href="~/css/reference-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/projects.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/reference-components.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/sweetalert2/sweetalert2.min.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="app" id="app">
+        @if (isSignedIn)
+        {
+            <header class="topbar">
+                <button type="button" class="icon-btn burger" aria-controls="navsheet" aria-expanded="false" aria-label="Open menu" data-nav-toggle>
+                    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+
+                <partial name="_Wordmark" />
+
+                <nav class="tnav" aria-label="Main">
+                    <a asp-controller="Home" asp-action="Index" aria-current="@NavCurrent("Home")">Home</a>
+                    @if (User.IsInRole("Customer"))
+                    {
+                        <a asp-controller="Projects" asp-action="Index" aria-current="@NavCurrent("Projects")">
+                            Projects
+                            @if (ViewData["ProjectsNeedsYouCount"] is int needYou && needYou > 0)
+                            {
+                                <span class="cnt" aria-label="@needYou need you">@needYou</span>
+                            }
+                        </a>
+                        <a asp-controller="CustomerProfile" asp-action="Index" aria-current="@OrgNavCurrent()">Organisation</a>
+                    }
+                    @if (User.IsInRole("Partner"))
+                    {
+                        <a asp-controller="Customers" asp-action="Index" aria-current="@NavCurrent("Customers")">Customers</a>
+                        <a href="~/Projects" aria-current="@NavCurrent("Projects")">Projects</a>
+                    }
+                    @if (User.IsInRole("SuperAdmin") || User.IsInRole("InternalUser"))
+                    {
+                        <a asp-controller="Partners" asp-action="Index" aria-current="@NavCurrent("Partners")">Partners</a>
+                        <a asp-controller="Customers" asp-action="Index" aria-current="@NavCurrent("Customers")">Customers</a>
+                        <a href="~/Projects" aria-current="@NavCurrent("Projects")">Projects</a>
+                        <a asp-controller="DocumentTypes" asp-action="Index" aria-current="@NavCurrent("DocumentTypes")">Document types</a>
+                    }
+                    @if (User.IsInRole("SuperAdmin"))
+                    {
+                        <a asp-controller="InternalUsers" asp-action="Index" aria-current="@NavCurrent("InternalUsers")">Internal users</a>
+                        <a asp-controller="IpAddresses" asp-action="Index" aria-current="@NavCurrent("IpAddresses")">IP addresses</a>
+                    }
+                </nav>
+
+                <div class="tb-right">
+                    <button type="button" class="userbtn hide-sm" data-user-menu aria-haspopup="menu" aria-expanded="false">
+                        <span class="av" aria-hidden="true">@initials</span>
+                        <span class="who-t">
+                            <span class="nm">@displayName</span>
+                            @if (showCompanySubline)
+                            {
+                                <span class="co">@userCompanyName</span>
+                            }
+                        </span>
+                        <svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    <div class="menu user-menu" id="user-menu" role="menu" hidden>
+                        <div class="menu-head">
+                            <div class="strong">@displayName</div>
+                            @if (!string.IsNullOrWhiteSpace(userEmail) && !string.Equals(userEmail, displayName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                <div class="menu-email">@userEmail</div>
+                            }
+                        </div>
+                        <hr />
+                        <a role="menuitem" asp-controller="Settings" asp-action="ChangePassword">
+                            <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></svg>
+                            Settings
+                        </a>
+                        @if (User.IsInRole("Customer"))
+                        {
+                            <a role="menuitem" asp-controller="CustomerProfile" asp-action="Index">
+                                <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4" /></svg>
+                                Organisation profile
+                            </a>
+                        }
+                        <hr />
+                        <form asp-controller="Auth" asp-action="Logout" method="post" style="margin:0"
+                              data-confirm-title="Sign out?"
+                              data-confirm="Your answers are saved. You’ll pick up where you left off."
+                              data-confirm-ok="Sign out"
+                              data-confirm-cancel="Stay signed in"
+                              data-confirm-icon="logout">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" role="menuitem">
+                                <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
+                                Sign out
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </header>
+
+            <div class="nav-scrim" data-nav-close></div>
+            <nav class="navsheet" id="navsheet" aria-label="Main navigation">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <partial name="_Wordmark" />
+                    <button type="button" class="icon-btn" data-nav-close aria-label="Close menu">
+                        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <a class="nv" asp-controller="Home" asp-action="Index" aria-current="@NavCurrent("Home")">Home</a>
+                @if (User.IsInRole("Customer"))
+                {
+                    <a class="nv" asp-controller="Projects" asp-action="Index" aria-current="@NavCurrent("Projects")">Projects</a>
+                    <a class="nv" asp-controller="CustomerProfile" asp-action="Index" aria-current="@OrgNavCurrent()">Organisation</a>
+                }
+                @if (User.IsInRole("Partner"))
+                {
+                    <a class="nv" asp-controller="Customers" asp-action="Index" aria-current="@NavCurrent("Customers")">Customers</a>
+                    <a class="nv" href="~/Projects" aria-current="@NavCurrent("Projects")">Projects</a>
+                }
+                @if (User.IsInRole("SuperAdmin") || User.IsInRole("InternalUser"))
+                {
+                    <a class="nv" asp-controller="Partners" asp-action="Index" aria-current="@NavCurrent("Partners")">Partners</a>
+                    <a class="nv" asp-controller="Customers" asp-action="Index" aria-current="@NavCurrent("Customers")">Customers</a>
+                    <a class="nv" href="~/Projects" aria-current="@NavCurrent("Projects")">Projects</a>
+                    <a class="nv" asp-controller="DocumentTypes" asp-action="Index" aria-current="@NavCurrent("DocumentTypes")">Document types</a>
+                }
+                @if (User.IsInRole("SuperAdmin"))
+                {
+                    <a class="nv" asp-controller="InternalUsers" asp-action="Index" aria-current="@NavCurrent("InternalUsers")">Internal users</a>
+                    <a class="nv" asp-controller="IpAddresses" asp-action="Index" aria-current="@NavCurrent("IpAddresses")">IP addresses</a>
+                }
+                <hr style="border:0;border-top:1px solid var(--line);margin:12px 0" />
+                <a class="nv" asp-controller="Settings" asp-action="ChangePassword">Settings</a>
+                <form asp-controller="Auth" asp-action="Logout" method="post" style="margin:0"
+                      data-confirm-title="Sign out?"
+                      data-confirm="Your answers are saved. You’ll pick up where you left off."
+                      data-confirm-ok="Sign out"
+                      data-confirm-cancel="Stay signed in"
+                      data-confirm-icon="logout">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="nv" style="width:100%;border:0;background:none;cursor:pointer">Sign out</button>
+                </form>
+            </nav>
+        }
+
+        <div class="app-scroll">
+            <main class="content @(ViewData["FullBleed"] as bool? == true ? "content--bleed" : "wrap")" role="main">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/sweetalert2/sweetalert2.all.min.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+@await Html.PartialAsync("_ValidationScriptsPartial")
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const dropdown = document.querySelector(".p-dropdown");
+
+    if (dropdown) {
+        dropdown.addEventListener("change", function () {
+
+            const placeholder = dropdown.querySelector('option[value=""]');
+
+            if (this.value !== "" && placeholder) {
+                placeholder.disabled = true;
+            }
+
+        });
+    }
+
+});
+
+</script>
+</body>
+</html>

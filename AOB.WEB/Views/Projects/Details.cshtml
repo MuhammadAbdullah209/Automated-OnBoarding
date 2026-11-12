@@ -1,0 +1,26 @@
+@model AOB.WEB.ViewModels.Projects.ProjectDetailsViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@{
+    var full = Model.Details;
+    var project = full.Project;
+    ViewData["Title"] = project.Name;
+    ViewData["Crumbs"] = "Projects / " + project.Name;
+
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    ViewData["FlowSubtitle"] = $"Overview · {ProjectOptions.ProjectStatusLabels[project.Status]}";
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    if (readOnlyStaff)
+    {
+        ViewData["ProjectHubMode"] = true;
+    }
+}
+
+@if (!readOnlyStaff)
+{
+    <partial name="_CustomerProjectOverview" model="Model" />
+}
+else
+{
+    <partial name="_StaffProjectOverview" model="Model" />
+}

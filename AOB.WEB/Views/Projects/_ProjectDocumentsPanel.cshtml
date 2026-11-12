@@ -1,0 +1,132 @@
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@using AOB.WEB.Helpers
+@*
+    The files uploaded for a project, in the prototype's document rows (as on the customer's Documents page).
+    A file answering a document request shows that request's status; the latest one waiting for review gets the
+    same Approve / Reject / Resolve actions as the Document requests card.
+*@
+@{
+    var docs = (IReadOnlyList<ProjectDocumentInfoDto>?)ViewData["ProjectDocuments"] ?? Array.Empty<ProjectDocumentInfoDto>();
+    var projectId = (Guid)ViewData["ProjectDocumentsProjectId"]!;
+    var partnerCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var canReview = User.IsInRole(AppRoles.InternalUser);
+    var awaiting = docs.Count(d => d.AwaitingReview && !d.IsSuperseded);
+    var alwaysShow = ViewData["ProjectDocumentsAlwaysShow"] is true;
+    var useStaffSheet = ViewData["StaffOverviewSheets"] is true;
+
+    static string DocKind(string fileName)
+    {
+        var dot = fileName.LastIndexOf('.');
+        if (dot < 0 || dot >= fileName.Length - 1) return "FILE";
+        var ext = fileName[(dot + 1)..].ToUpperInvariant();
+        return ext.Length > 0 && ext.Length <= 4 ? ext : "FILE";
+    }
+}
+
+@if (docs.Count > 0 || alwaysShow)
+{
+    <section class="sheet project-docs-sheet @(useStaffSheet ? "staff-overview-sheet" : "")" aria-labelledby="proj-docs-h">
+        <div class="sheet-h">
+            <div class="sheet-ttl">
+                <h2 class="h3" id="proj-docs-h">Project documents</h2>
+                <p class="small muted">Files uploaded for this project, newest first in each group.</p>
+            </div>
+            @if (docs.Count == 0)
+            {
+                <span class="tag">No files</span>
+            }
+            else if (awaiting > 0)
+            {
+                <span class="tag you">@awaiting to review</span>
+            }
+            else
+            {
+                <span class="tag">@docs.Count @(docs.Count == 1 ? "file" : "files")</span>
+            }
+        </div>
+        @if (docs.Count == 0)
+        {
+            <div class="sheet-b">
+                <p class="customer-muted-line mb-0">No project documents uploaded yet.</p>
+            </div>
+        }
+        else
+        {
+        <div class="project-docs-list @(docs.Count > 6 ? "is-scroll" : "")">
+            @foreach (var doc in docs.OrderBy(d => d.Category).ThenByDescending(d => d.UploadedAt))
+            {
+                var itemId = doc.InformationRequestItemId;
+                var hasReview = itemId is not null && doc.ItemStatus is not null;
+                var status = doc.ItemStatus;
+                string? statusLabel;
+                string? statusBadge;
+                if (doc.IsSuperseded)
+                {
+                    statusLabel = "Superseded";
+                    statusBadge = "badge-gray";
+                }
+                else if (hasReview && status is { } s)
+                {
+                    statusLabel = InformationRequestUi.ItemLabel(s);
+                    statusBadge = InformationRequestUi.ItemBadge(s);
+                }
+                else
+                {
+                    statusLabel = null;
+                    statusBadge = null;
+                }
+                var showReviewActions = canReview && itemId is Guid && doc.AwaitingReview;
+                var approved = !doc.IsSuperseded && status == InformationItemStatus.Approved;
+                <div class="doc-row @(doc.IsSuperseded ? "is-inactive" : "")">
+                    <span class="doc-ic @(approved ? "ok" : "pending")" aria-hidden="true">
+                        @if (approved)
+                        {
+                            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5" /></svg>
+                        }
+                        else
+                        {
+                            <span class="mono xsmall" style="font-weight:600">@DocKind(doc.FileName)</span>
+                        }
+                    </span>
+                    <div class="doc-body">
+                        <div class="doc-head">
+                            <span class="doc-title">@(doc.Category ?? ProjectOptions.ProjectDocumentTypeLabels[doc.Type])</span>
+                            @if (statusLabel is not null && statusBadge is not null)
+                            {
+                                <span class="badge badge-sm @statusBadge" data-doc-status-badge><span class="bd"></span>@statusLabel</span>
+                            }
+                        </div>
+                        <p class="doc-meta"><span class="mono">@doc.FileName</span> · @doc.UploadedAt.ToLocalTime().ToString("d MMM yyyy")</p>
+                    </div>
+                    <div class="row dact doc-panel-actions" style="gap:6px">
+                        @if (doc.Type == ProjectDocumentType.InformationRequest)
+                        {
+                            <a asp-controller="Projects" asp-action="DownloadInformationDocument" asp-route-customerId="@partnerCustomerId" asp-route-id="@projectId" asp-route-documentId="@doc.Id" class="btn btn-sm btn-quiet btn-icon-only has-tooltip" aria-label="Download document" data-tip="Download to view this document">
+                                <partial name="_DownloadIconLink" />
+                            </a>
+                        }
+                        else if (partnerCustomerId is Guid customerId)
+                        {
+                            <a asp-controller="Customers" asp-action="DownloadProjectDocument" asp-route-id="@customerId" asp-route-projectId="@projectId" asp-route-type="@doc.Type" class="btn btn-sm btn-quiet btn-icon-only has-tooltip" aria-label="Download document" data-tip="Download to view this document">
+                                <partial name="_DownloadIconLink" />
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-controller="Projects" asp-action="DownloadProjectDocument" asp-route-id="@projectId" asp-route-type="@doc.Type" class="btn btn-sm btn-quiet btn-icon-only has-tooltip" aria-label="Download document" data-tip="Download to view this document">
+                                <partial name="_DownloadIconLink" />
+                            </a>
+                        }
+                        @if (showReviewActions && itemId is Guid reviewItemId)
+                        {
+                            <partial name="_InformationReviewActions" model="@((projectId, reviewItemId, doc.Category ?? "this document", true))" />
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+        }
+    </section>
+}

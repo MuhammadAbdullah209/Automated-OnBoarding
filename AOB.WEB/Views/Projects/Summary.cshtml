@@ -1,0 +1,259 @@
+@model AOB.BAL.DTOs.Projects.ProjectFullDetailsDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.Common.Helpers
+@{
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = "Details";
+    var project = Model.Project;
+    ViewData["FlowSubtitle"] = $"Details · {ProjectOptions.ProjectStatusLabels[project.Status]}";
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var canEdit = !project.IsSubmitted && !readOnlyStaff;
+
+    // Submitted customers and internal staff use Status / Details / Activity tabs (no setup rail).
+    if (project.IsSubmitted || readOnlyStaff)
+    {
+        ViewData["ProjectHubMode"] = true;
+        ViewData["ProjectHubLive"] = project.Status is ProjectStatus.Completed or ProjectStatus.AccountCreation;
+        ViewData["ShowLaunchFlow"] = !readOnlyStaff && project.Status == ProjectStatus.Completed && project.BuildType != BuildType.Custom;
+    }
+}
+
+@functions {
+    // Shows "—" for anything the customer left blank.
+    static string Show(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    static string List<T>(IEnumerable<T>? items, IReadOnlyDictionary<T, string> labels) where T : notnull
+    {
+        var texts = (items ?? Enumerable.Empty<T>()).Select(i => labels.TryGetValue(i, out var l) ? l : i.ToString()!).ToList();
+        return texts.Count == 0 ? "—" : string.Join(", ", texts);
+    }
+
+    static string One<T>(T? item, IReadOnlyDictionary<T, string> labels) where T : struct
+        => item is { } v && labels.TryGetValue(v, out var l) ? l : "—";
+}
+
+@{
+    // Section heading with an Edit link while the project can still be changed.
+    async Task SectionHead(string title, string? editAction, bool done)
+    {
+        <div class="ans-h">
+            <div class="strong">@title</div>
+            @if (!done)
+            {
+                <span class="tag you">Not completed yet</span>
+            }
+            @if (canEdit && editAction is not null)
+            {
+                <a asp-action="@editAction" asp-route-id="@project.Id" class="link small">@(done ? "Edit" : "Answer now")</a>
+            }
+        </div>
+    }
+}
+
+<section class="sheet">
+    <div class="sheet-h">
+        <div class="sheet-ttl">
+            <h2 class="h3">@(project.IsSubmitted ? "Your submitted answers" : "Your answers so far")</h2>
+            <p class="small muted">
+                @if (project.IsSubmitted)
+                {
+                    @:Read-only after submission. To change an answer, contact PCI Pal support and quote <span class="mono">@ProjectOnboardingPresentation.ShortReference(project.Id)</span>.
+                }
+                else
+                {
+                    @:Everything entered so far. The project hasn’t been submitted yet.
+                }
+            </p>
+        </div>
+        @if (project.IsSubmitted)
+        {
+            <span class="tag">
+                <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                Locked
+            </span>
+        }
+    </div>
+
+    <div class="sheet-b">
+        @* ---------------- Project ---------------- *@
+        <div class="ans-sec">
+            @{ await SectionHead("Project", null, true); }
+            <dl class="dl">
+                <dt>Project name</dt><dd>@project.Name</dd>
+                <dt>Services</dt><dd>@List(project.Services, ProjectOptions.ServiceLabels)</dd>
+                <dt>Status</dt><dd>@ProjectOptions.ProjectStatusLabels[project.Status]</dd>
+                <dt>Created</dt><dd>@Model.CreatedAt.ToString("d MMM yyyy, HH:mm")</dd>
+                @if (project.IsSubmitted && Model.LastUpdatedAt is { } submittedAt)
+                {
+                    <dt>Submitted</dt><dd>@submittedAt.ToString("d MMM yyyy, HH:mm")</dd>
+                }
+            </dl>
+        </div>
+
+        @* ---------------- Discovery ---------------- *@
+        <div class="ans-sec">
+            @{ await SectionHead("Discovery", "Discovery", Model.Discovery is not null); }
+            @if (Model.Discovery is { } d)
+            {
+                <dl class="dl">
+                    <dt>System your team uses</dt><dd>@One(d.CrmSystem, ProjectOptions.CrmSystemLabels)</dd>
+                    <dt>How customers pay today</dt><dd>@List(d.CurrentPaymentMethods, ProjectOptions.CurrentPaymentMethodLabels)</dd>
+                    <dt>Payment journey</dt><dd style="white-space:pre-line">@Show(d.PaymentJourneyDescription)</dd>
+                    <dt>Payment experience</dt><dd>@One(d.CrmPaymentExperience, ProjectOptions.CrmPaymentExperienceLabels)</dd>
+                    @if (d.CrmPaymentExperience == CrmPaymentExperience.EmbeddedIframe)
+                    {
+                        <dt>Portal URLs</dt>
+                        <dd class="mono" style="white-space:pre-line">@Show(d.PortalUrls)</dd>
+                    }
+                </dl>
+            }
+            else
+            {
+                <p class="ans-empty">No answers yet.</p>
+            }
+        </div>
+
+        @* ---------------- Technical environment ---------------- *@
+        <div class="ans-sec">
+            @{ await SectionHead("Technical environment", "TechnicalEnvironment", Model.TechnicalEnvironment is not null); }
+            @if (Model.TechnicalEnvironment is { } t)
+            {
+                <dl class="dl">
+                    @if (project.CrmSystem == CrmSystem.Crm)
+                    {
+                        <dt>Business system / CRM</dt><dd>@One(t.CrmPlatform, ProjectOptions.CrmPlatformLabels)</dd>
+                    }
+                    <dt>Regions where payments are processed</dt><dd>@List(t.PaymentRegions, ProjectOptions.PaymentRegionLabels)</dd>
+                    <dt>Staging regions</dt><dd>@List(t.StagingRegions, ProjectOptions.PciPalRegionLabels)</dd>
+                    <dt>Production regions</dt><dd>@List(t.ProductionRegions, ProjectOptions.PciPalRegionLabels)</dd>
+                    <dt>Can reach external endpoints</dt><dd>@One(t.OutboundAccess, ProjectOptions.OutboundAccessLabels)</dd>
+                </dl>
+            }
+            else
+            {
+                <p class="ans-empty">No answers yet.</p>
+            }
+        </div>
+
+        @* ---------------- Payment configuration ---------------- *@
+        <div class="ans-sec">
+            @{ await SectionHead("Payment configuration", "PaymentConfiguration", Model.PaymentConfiguration is not null); }
+            @if (Model.PaymentConfiguration is { } p)
+            {
+                <dl class="dl">
+                    <dt>Payment provider</dt><dd>@Show(Model.PaymentGatewayName)</dd>
+                    <dt>Accepted cards</dt><dd>@List(p.SupportedCards, ProjectOptions.CardSchemeLabels)</dd>
+                    <dt>Attempts per session</dt><dd>@ProjectOptions.FormatMaxPaymentAttempts(p.MaxPaymentAttempts)</dd>
+                    <dt>Merchant accounts</dt><dd>@(p.TotalMerchantAccounts?.ToString() ?? "—")</dd>
+                    @if (p.TotalMerchantAccounts is > 1)
+                    {
+                        <dt>How the merchants are identified</dt>
+                        <dd>@One(p.MerchantIdentification, ProjectOptions.MerchantIdentificationLabels)@(p.MerchantIdentification == MerchantIdentification.Other && !string.IsNullOrWhiteSpace(p.MerchantIdentificationOther) ? ": " + p.MerchantIdentificationOther : "")</dd>
+                    }
+                    <dt>Acquirer</dt><dd>@Show(p.CustomerAcquirer)</dd>
+                    <dt>Payment types</dt><dd>@List(p.PaymentTypes, ProjectOptions.PaymentTypeLabels)</dd>
+                    <dt>Currencies</dt><dd>@List(p.Currencies, ProjectOptions.CurrencyLabels)</dd>
+                    <dt>Card masking</dt><dd>@One(p.CardNumberMasking, ProjectOptions.CardNumberMaskingLabels)</dd>
+                    <dt>SMS provider</dt>
+                    <dd>
+                        @One(p.SmsServiceProvider, ProjectOptions.SmsServiceProviderLabels)
+                        @if (p.SmsServiceProvider == SmsServiceProvider.Other)
+                        {
+                            <span>— @One(p.OtherSmsProvider, ProjectOptions.OtherSmsProviderLabels)</span>
+                        }
+                    </dd>
+                    <dt>Email provider</dt>
+                    <dd>
+                        @One(p.EmailServiceProvider, ProjectOptions.EmailServiceProviderLabels)
+                        @if (p.EmailServiceProvider == EmailServiceProvider.Other)
+                        {
+                            <span>— @One(p.OtherEmailProvider, ProjectOptions.OtherEmailProviderLabels)</span>
+                        }
+                    </dd>
+                    <dt>Sandbox available</dt><dd>@(p.HasSandboxEnvironment ? "Yes — available for integration testing" : "No")</dd>
+                </dl>
+            }
+            else
+            {
+                <p class="ans-empty">No answers yet.</p>
+            }
+        </div>
+
+        @* ---------------- Adaptive configuration ---------------- *@
+        <div class="ans-sec">
+            @{ await SectionHead("Adaptive configuration", "GatewayConfiguration", Model.GatewayConfiguration is not null); }
+            @if (Model.GatewayConfiguration is { } g)
+            {
+                var authentication = Model.GatewayFields.Where(f => f.FieldType == GatewayFieldType.Authentication).ToList();
+                var inputs = Model.GatewayFields.Where(f => f.FieldType != GatewayFieldType.Authentication && f.IsInput).ToList();
+                var outputs = Model.GatewayFields.Where(f => f.FieldType != GatewayFieldType.Authentication && !f.IsInput).ToList();
+
+                <dl class="dl">
+                    <dt>Authentication fields</dt>
+                    <dd>
+                        @foreach (var f in authentication)
+                        {
+                            <span class="tok mono">@f.Name</span>
+                        }
+                        @if (authentication.Count == 0) { <span>—</span> }
+                    </dd>
+                    <dt>Input fields</dt>
+                    <dd>
+                        @foreach (var f in inputs)
+                        {
+                            <span class="tok mono" title="@f.Description">@f.Name@(f.FieldType == GatewayFieldType.Required ? " (required)" : "")</span>
+                        }
+                        @if (inputs.Count == 0) { <span>—</span> }
+                    </dd>
+                    <dt>Output fields</dt>
+                    <dd>
+                        @foreach (var f in outputs)
+                        {
+                            <span class="tok mono" title="@f.Description">@f.Name@(f.FieldType == GatewayFieldType.Required ? " (required)" : "")</span>
+                        }
+                        @if (outputs.Count == 0) { <span>—</span> }
+                    </dd>
+                    <dt>Result return</dt><dd>@List(g.PostTransactionMethods, ProjectOptions.PostTransactionMethodLabels)</dd>
+                    @if (g.PostTransactionMethods.Contains(PostTransactionMethod.Redirect))
+                    {
+                        <dt>Redirect URL</dt><dd class="mono">@Show(g.RedirectUrl)</dd>
+                    }
+                    @if (g.PostTransactionMethods.Contains(PostTransactionMethod.WebCallback))
+                    {
+                        <dt>API documentation</dt>
+                        <dd>
+                            @if (Model.ApiDocumentation is { } doc)
+                            {
+                                @if (actingCustomerId is Guid pcid)
+                                {
+                                    <a asp-controller="Customers" asp-action="DownloadProjectApiDocumentation" asp-route-id="@pcid" asp-route-projectId="@project.Id" class="link">@doc.FileName</a>
+                                }
+                                else
+                                {
+                                    <a asp-action="DownloadApiDocumentation" asp-route-id="@project.Id" class="link">@doc.FileName</a>
+                                }
+                                <span class="small muted">· uploaded @doc.UploadedAt.ToString("d MMM yyyy")</span>
+                            }
+                            else
+                            {
+                                <span class="muted">Not provided yet</span>
+                            }
+                        </dd>
+                    }
+                    @if (project.TakesPhonePayments)
+                    {
+                        <dt>Contact centre platform</dt><dd>@One(g.ContactCentrePlatform, ProjectOptions.ContactCentrePlatformLabels)</dd>
+                        <dt>Connection type</dt><dd>@One(g.ConnectionType, ProjectOptions.ContactCentreConnectionTypeLabels)</dd>
+                        <dt>Handover notes</dt><dd style="white-space:pre-line">@Show(g.HandoverNotes)</dd>
+                    }
+                </dl>
+            }
+            else
+            {
+                <p class="ans-empty">No answers yet.</p>
+            }
+        </div>
+    </div>
+</section>

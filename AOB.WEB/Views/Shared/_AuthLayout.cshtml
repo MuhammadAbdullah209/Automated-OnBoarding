@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+@{
+    var heroLines = ViewData["AuthHero"] as string[] ?? new[]
+    {
+        "Your PCI Pal onboarding,",
+        "in one clear view.",
+        "See where every project stands, what PCI Pal needs from you, and when you go live."
+    };
+    var showExample = ViewData["ShowAuthExample"] as bool? == true;
+}
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#bdd1f1" />
+    <title>@ViewData["Title"] — PCI Pal Onboarding</title>
+    <link rel="stylesheet" href="~/css/reference-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/onboarding.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="lp lp-anim">
+        <div class="lp-stage" aria-hidden="true">
+            <div class="lp-grid"></div>
+            <div class="lp-orb a"></div>
+            <div class="lp-orb b"></div>
+            <div class="lp-orb c"></div>
+            <div class="lp-beam"></div>
+        </div>
+
+        <div class="lp-page">
+            <a class="lp-brand" asp-controller="Auth" asp-action="Login" aria-label="PCI Pal Onboarding">
+                <img src="~/img/pcipal-logo.svg" alt="PCI Pal" asp-append-version="true" />
+                <span>Onboarding</span>
+            </a>
+
+            <section class="lp-hero" aria-label="About PCI Pal onboarding">
+                <h2>
+                    <span class="l"><i>@heroLines[0]</i></span>
+                    <span class="l"><i>@heroLines[1]</i></span>
+                </h2>
+                @if (heroLines.Length > 2)
+                {
+                    <p>@heroLines[2]</p>
+                }
+                @if (showExample)
+                {
+                    <partial name="_AuthExampleProjects" />
+                }
+            </section>
+
+            <div class="lp-side auth-side">
+                <main class="lp-card @(ViewData["AuthCardClass"] as string)" role="main">
+                    @RenderBody()
+                </main>
+                <footer class="lp-foot">
+                    <span>&copy; @DateTime.UtcNow.Year PCI Pal</span>
+                    @* <a asp-controller="Home" asp-action="Privacy">Privacy</a>
+                    <a asp-controller="Home" asp-action="Privacy" class="lp-foot-help" style="text-decoration:none">Help</a> *@
+                </footer>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+    <script src="~/js/auth.js" asp-append-version="true"></script>
+</body>
+</html>

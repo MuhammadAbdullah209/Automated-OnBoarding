@@ -1,0 +1,53 @@
+@model AOB.WEB.ViewModels.Admin.CreateInternalUserViewModel
+@{
+    ViewData["Title"] = "Add internal user";
+    ViewData["Crumbs"] = "Internal users / Add internal user";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-action="Index">Internal users</a><span class="crumb-sep" aria-hidden="true">›</span><span>Add internal user</span>
+            </nav>
+            <h1 class="h1">Add internal user</h1>
+            <p class="lede" style="margin-top:4px">Create a staff account. We email them a verification link. Once they verify, they get a temporary password that they must change when they first sign in.</p>
+        </div>
+    </div>
+
+    <div class="page-stack form-page">
+        <form method="post" autocomplete="off" class="sheet sheet-form" novalidate>
+            @Html.AntiForgeryToken()
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3">Staff details</h2>
+                    <p class="small muted">All fields are required.</p>
+                </div>
+            </div>
+            <div class="sheet-b">
+                <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+                <div class="field">
+                    <label asp-for="FullName" class="field-label req"></label>
+                    <input asp-for="FullName" class="tinput" />
+                    <span asp-validation-for="FullName"></span>
+                </div>
+                <div class="field">
+                    <label asp-for="Email" class="field-label req"></label>
+                    <div class="hint">We send the verification link here. They sign in with this email.</div>
+                    <input asp-for="Email" class="tinput" type="email" autocomplete="off" />
+                    <span asp-validation-for="Email"></span>
+                </div>
+            </div>
+            <div class="sheet-f">
+                <a asp-action="Index" class="btn btn-quiet">Cancel</a>
+                <span class="spacer"></span>
+                <button type="submit" class="btn btn-primary">Create and send verification</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

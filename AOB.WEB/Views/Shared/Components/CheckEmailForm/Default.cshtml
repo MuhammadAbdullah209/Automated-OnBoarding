@@ -1,0 +1,39 @@
+@model AOB.WEB.ViewModels.Auth.ForgotPasswordViewModel
+@{
+    var hasEmail = !string.IsNullOrWhiteSpace(Model.Email);
+}
+
+@if (hasEmail)
+{
+    <section class="sheet stack-sm" style="margin-top:4px">
+        <div class="sheet-b stack-sm">
+            <div class="row" style="gap:10px;align-items:flex-start">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16v12H4z" /><path d="m4 7 8 6 8-6" /></svg>
+                <span class="strong">Didn't get it?</span>
+            </div>
+            <p class="small muted">Check junk or spam, then send the email again. Earlier links stop working when a new one is sent.</p>
+            <form asp-controller="Auth" asp-action="ResendVerification" method="post" class="row wrap" style="gap:10px;margin:0">
+                @Html.AntiForgeryToken()
+                <input asp-for="Email" type="hidden" />
+                <button type="submit" class="btn btn-quiet btn-sm"><span class="spinner" aria-hidden="true"></span>Resend verification email</button>
+                <a asp-controller="Auth" asp-action="Login" class="btn btn-text btn-sm">Back to sign in</a>
+            </form>
+        </div>
+    </section>
+}
+else
+{
+    <form asp-controller="Auth" asp-action="ResendVerification" method="post" class="stack" data-auth-form novalidate>
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+        <div class="field">
+            <label asp-for="Email" class="label req"></label>
+            <input asp-for="Email" class="tinput input" autocomplete="username" placeholder="name@company.com" />
+            <span asp-validation-for="Email"></span>
+        </div>
+        <div class="auth-actions">
+            <button type="submit" class="btn btn-primary btn-lg btn-block sweep"><span class="spinner" aria-hidden="true"></span>Send a new link</button>
+        </div>
+    </form>
+    <p class="auth-alt" style="margin:0"><a asp-controller="Auth" asp-action="Login" class="auth-link link">&larr; Back to sign in</a></p>
+}

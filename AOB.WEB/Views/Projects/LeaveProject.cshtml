@@ -1,0 +1,26 @@
+@model AOB.WEB.ViewModels.Projects.ProjectLeaveViewModel
+@{
+    ViewData["Title"] = "Project";
+    ViewData["Crumbs"] = "Projects";
+}
+<div class="ph">
+    <div class="ttl">
+        <h1 class="h1">Opening project</h1>
+        <p class="lede" style="margin-top:4px">This project is scheduled for deletion.</p>
+    </div>
+</div>
+<noscript>
+    <p><a href="@Model.ContinueUrl">View the deletion countdown</a></p>
+    <p><a href="@Model.ListUrl">All projects</a></p>
+</noscript>
+<script>
+    (function () {
+        var listUrl = @Json.Serialize(Model.ListUrl);
+        var continueUrl = @Json.Serialize(Model.ContinueUrl);
+        var nav = performance.getEntriesByType('navigation')[0];
+        var back = sessionStorage.getItem('aob-back-to-projects') === '1'
+            || (nav && nav.type === 'back_forward');
+        sessionStorage.removeItem('aob-back-to-projects');
+        location.replace(back ? listUrl : continueUrl);
+    })();
+</script>

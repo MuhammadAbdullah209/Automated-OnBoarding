@@ -1,0 +1,150 @@
+@model AOB.BAL.DTOs.Customers.CustomerProfileDto
+@using AOB.BAL.Common.Constants
+@{
+    var sectionKey = ViewData["OrgEditSection"] as string ?? "";
+    var countries = new SelectList(CustomerFormOptions.Countries, nameof(SelectOption.Code), nameof(SelectOption.Label));
+    var sectors = new SelectList(CustomerFormOptions.IndustrySectors, nameof(SelectOption.Code), nameof(SelectOption.Label));
+    var patterns = new SelectList(CustomerFormOptions.OperatingPatterns, nameof(SelectOption.Code), nameof(SelectOption.Label));
+    var timeZones = new SelectList(CustomerFormOptions.TimeZones, nameof(SelectOption.Code), nameof(SelectOption.Label));
+}
+
+<form asp-controller="CustomerProfile" asp-action="SaveSection" method="post" class="stack org-section-form" style="margin-top:8px" novalidate
+      data-org-profile-form
+      aria-labelledby="@($"os-{sectionKey}-title")">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="section" value="@sectionKey" />
+
+    @if (sectionKey == "company")
+    {
+        <div class="grid2">
+            <div class="field">
+                <label asp-for="CompanyName" class="label req"></label>
+                <input asp-for="CompanyName" class="input" autocomplete="organization" />
+                <span asp-validation-for="CompanyName" class="field-validation-error err"></span>
+            </div>
+            <div class="field">
+                <label asp-for="CompanyRegistrationNumber" class="label req"></label>
+                <div class="hint">Companies House number, or local equivalent.</div>
+                <input asp-for="CompanyRegistrationNumber" class="input" placeholder="e.g. 08451392" autocomplete="off" />
+                <span asp-validation-for="CompanyRegistrationNumber" class="err"></span>
+            </div>
+            <div class="field">
+                <label asp-for="RegisteredCountryCode" class="label req"></label>
+                <select asp-for="RegisteredCountryCode" asp-items="countries" class="select">
+                    <option value="">Select country</option>
+                </select>
+                <span asp-validation-for="RegisteredCountryCode" class="err"></span>
+            </div>
+            <div class="field">
+                <label asp-for="IndustrySector" class="label">Industry sector <span class="opt">Optional</span></label>
+                <select asp-for="IndustrySector" asp-items="sectors" class="select">
+                    <option value="">Select sector</option>
+                </select>
+                <span asp-validation-for="IndustrySector" class="err"></span>
+            </div>
+        </div>
+        <div class="field">
+            <label asp-for="CompanyWebsite" class="label">Company website <span class="opt">Optional</span></label>
+            <input asp-for="CompanyWebsite" class="input" type="url" placeholder="https://www.example.com" autocomplete="url" />
+            <span asp-validation-for="CompanyWebsite" class="err"></span>
+        </div>
+    }
+    else if (sectionKey == "pc" || sectionKey == "tc")
+    {
+        <div class="grid2">
+            <div class="field">
+                @if (sectionKey == "pc")
+                {
+                    <label asp-for="PrimaryContactFullName" class="label req"></label>
+                    <input asp-for="PrimaryContactFullName" class="input" autocomplete="name" />
+                    <span asp-validation-for="PrimaryContactFullName" class="err"></span>
+                }
+                else
+                {
+                    <label asp-for="TechnicalContactFullName" class="label req"></label>
+                    <input asp-for="TechnicalContactFullName" class="input" autocomplete="name" />
+                    <span asp-validation-for="TechnicalContactFullName" class="err"></span>
+                }
+            </div>
+            <div class="field">
+                <label class="label">Job title <span class="opt">Optional</span></label>
+                @if (sectionKey == "pc")
+                {
+                    <input asp-for="PrimaryContactJobTitle" class="input" placeholder="e.g. Head of Payments Operations" autocomplete="organization-title" />
+                }
+                else
+                {
+                    <input asp-for="TechnicalContactJobTitle" class="input" placeholder="e.g. Solutions Architect" autocomplete="off" />
+                }
+            </div>
+            <div class="field">
+                @if (sectionKey == "pc")
+                {
+                    <label asp-for="PrimaryContactEmail" class="label req"></label>
+                    <input asp-for="PrimaryContactEmail" class="input" type="email" autocomplete="email" placeholder="name@company.com" readonly aria-readonly="true" />
+                    <div class="hint">This is your sign-in email. It cannot be changed here.</div>
+                    <span asp-validation-for="PrimaryContactEmail" class="err"></span>
+                }
+                else
+                {
+                    <label asp-for="TechnicalContactEmail" class="label req"></label>
+                    <input asp-for="TechnicalContactEmail" class="input" type="email" autocomplete="email" placeholder="name@company.com" />
+                    <span asp-validation-for="TechnicalContactEmail" class="field-validation-valid err"></span>
+                }
+            </div>
+            <div class="field">
+                <label class="label">Phone number <span class="opt">Optional</span></label>
+                @if (sectionKey == "pc")
+                {
+                    <input asp-for="PrimaryContactPhoneNumber" class="input" type="tel" autocomplete="tel" placeholder="+44 20 7946 0000" />
+                }
+                else
+                {
+                    <input asp-for="TechnicalContactPhoneNumber" class="input" type="tel" autocomplete="tel" placeholder="+44 20 7946 0000" />
+                }
+            </div>
+        </div>
+    }
+    else if (sectionKey == "hours")
+    {
+        <div class="grid2">
+            <div class="field">
+                <label asp-for="OperatingPattern" class="label req"></label>
+                <select asp-for="OperatingPattern" asp-items="patterns" class="select">
+                    <option value="">Select pattern</option>
+                </select>
+                <span asp-validation-for="OperatingPattern" class="err"></span>
+            </div>
+            <div class="field">
+                <label asp-for="PrimaryTimeZone" class="label req"></label>
+                <select asp-for="PrimaryTimeZone" asp-items="timeZones" class="select">
+                    <option value="">Select timezone</option>
+                </select>
+                <span asp-validation-for="PrimaryTimeZone" class="err"></span>
+            </div>
+        </div>
+    }
+    else if (sectionKey == "partner")
+    {
+        <label class="check">
+            <input asp-for="HasTechnologyPartner" type="checkbox" />
+            <span class="box" aria-hidden="true">
+                <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" /></svg>
+            </span>
+            <span>
+                <span class="strong check-label">A technology partner is involved in this deployment</span>
+                <br><span class="hint">A system integrator, reseller or consultant.</span>
+            </span>
+        </label>
+    }
+
+    <div class="errsum org-save-error" role="alert" data-org-error hidden></div>
+
+    <div class="row wrap osec-actions">
+        <a asp-controller="CustomerProfile" asp-action="Index" asp-fragment="@($"os-{sectionKey}")" class="btn quiet" data-org-cancel>Cancel</a>
+        <button type="submit" class="btn primary" data-org-save>
+            <span class="spinner" aria-hidden="true"></span>
+            Save
+        </button>
+    </div>
+</form>

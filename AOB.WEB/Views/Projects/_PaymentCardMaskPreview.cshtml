@@ -1,0 +1,23 @@
+@using AOB.BAL.Common.Enums
+@using AOB.WEB.Helpers
+@{
+    var masking = ViewData["CardNumberMasking"] as CardNumberMasking?;
+    var preview = masking is CardNumberMasking m && ProjectFormMetadata.CardMaskingPreviews.TryGetValue(m, out var p)
+        ? p
+        : "4929 1804 2215 6411";
+    var label = masking.HasValue ? "Masked in your CRM" : "Choose a format";
+}
+<div class="maskprev" id="cardMaskPreview">
+    <div class="cardviz" role="img" aria-label="Card number preview">
+        <div class="row" style="justify-content:space-between">
+            <span class="chipz"></span>
+            <span class="xsmall" style="color:#c9d3e6" data-mask-label>@label</span>
+        </div>
+        <div class="mono cardviz-num" style="font-size:18px;letter-spacing:.08em;color:#FF0000" data-mask-preview>@preview</div>
+        <div class="xsmall" style="color:#c9d3e6">Shown after a payment completes</div>
+    </div>
+    <div>
+        <div class="strong">What your agents will see</div>
+        <p class="small muted" style="margin-top:2px">Live preview of the masking you choose.</p>
+    </div>
+</div>

@@ -1,0 +1,70 @@
+@model AOB.WEB.ViewModels.Auth.RegisterViewModel
+@{
+    var passwordId = Html.IdFor(m => m.Password);
+}
+
+<form asp-controller="Auth" asp-action="Register" method="post" class="stack" data-auth-form novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+    <div class="field">
+        <label asp-for="CompanyName" class="label req"></label>
+        <input asp-for="CompanyName" class="tinput input" autocomplete="organization" placeholder="e.g. Northbridge Mutual Insurance Ltd" />
+        <span asp-validation-for="CompanyName"></span>
+    </div>
+    <div class="field">
+        <label asp-for="Email" class="label req"></label>
+        <input asp-for="Email" class="tinput input" autocomplete="email" placeholder="name@company.com" />
+        <span asp-validation-for="Email"></span>
+    </div>
+    <div class="field">
+        <label asp-for="Password" class="label req"></label>
+        <div class="input-wrap">
+            <input asp-for="Password" class="tinput input" autocomplete="new-password" id="@passwordId" aria-describedby="@(passwordId)-rules" />
+            <button type="button" class="eye" aria-label="Show password" data-password-toggle data-target="@passwordId">
+                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+            </button>
+        </div>
+        <span asp-validation-for="Password"></span>
+        <partial name="_PasswordChecklist" model="@passwordId" />
+    </div>
+    <div class="field">
+        <label asp-for="ConfirmPassword" class="label req"></label>
+        <div class="input-wrap">
+            <input asp-for="ConfirmPassword" class="tinput input" autocomplete="new-password" id="reg-confirm-password" />
+            <button type="button" class="eye" aria-label="Show password" data-password-toggle data-target="reg-confirm-password">
+                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+            </button>
+        </div>
+        <span asp-validation-for="ConfirmPassword"></span>
+        <div class="pw-match" data-password-match data-for="reg-confirm-password" data-compare="@passwordId" aria-live="polite"></div>
+    </div>
+
+    <div class="auth-actions">
+        <button type="submit" class="btn btn-primary btn-lg btn-block sweep"><span class="spinner" aria-hidden="true"></span>Create account</button>
+    </div>
+</form>
+
+<p class="center-s">Already have an account? <a asp-controller="Auth" asp-action="Login" class="link">Sign in</a></p>
+
+<div class="prep2">
+    <div class="eyebrow">Have these to hand</div>
+    <ul>
+        <li>
+            <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" /></svg>
+            Company details
+        </li>
+        <li>
+            <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" /></svg>
+            Two contacts
+        </li>
+        <li>
+            <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM2 10h20M6 15h4" /></svg>
+            Payment set-up
+        </li>
+        <li>
+            <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h20v8H2zM2 13h20v8H2zM6 7h.01M6 17h.01" /></svg>
+            Network details
+        </li>
+    </ul>
+</div>

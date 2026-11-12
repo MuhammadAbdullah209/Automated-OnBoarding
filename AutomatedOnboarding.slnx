@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/SRC/" />
+  <Folder Name="/SRC/BAL/">
+    <Project Path="AOB.BAL/AOB.BAL.csproj" />
+  </Folder>
+  <Folder Name="/SRC/DAL/">
+    <Project Path="AOB.DAL/AOB.DAL.csproj" />
+  </Folder>
+  <Folder Name="/SRC/WEB/">
+    <Project Path="AOB.WEB/AOB.WEB.csproj" />
+  </Folder>
+  <Folder Name="/TEST/">
+    <Project Path="AOB.Tests/AOB.Tests.csproj" />
+  </Folder>
+</Solution>

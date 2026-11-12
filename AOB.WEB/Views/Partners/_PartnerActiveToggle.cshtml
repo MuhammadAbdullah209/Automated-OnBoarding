@@ -1,0 +1,49 @@
+@model AOB.BAL.DTOs.Partners.PartnerSummaryDto
+@using AOB.BAL.Common.Constants
+@*
+    Activate/deactivate control for a partner: a labelled button on the partner's page, or an on/off switch
+    in the list (ViewData["Variant"] = "switch"). PCIPAL owns all direct customers, so it is never deactivated:
+    the switch shows locked on, and the details page shows no button.
+*@
+@{
+    var isSwitch = ViewData["Variant"] as string == "switch";
+    var isDefault = Model.Id == PartnerConstants.PcipalPartnerId;
+    var label = Model.IsActive ? "Deactivate" : "Activate";
+}
+@if (isDefault)
+{
+    if (isSwitch)
+    {
+        <span class="switch is-on is-locked has-tooltip" role="switch" aria-checked="true" aria-disabled="true" tabindex="0"
+              data-tip="Default partner — always active">
+            <span class="switch-knob" aria-hidden="true"></span>
+            <span class="sr-only">@Model.Name is always active</span>
+        </span>
+    }
+}
+else
+{
+    <form asp-controller="Partners" asp-action="SetActive" asp-route-id="@Model.Id" method="post" class="admin-inline-form"
+          data-confirm-tone="@(Model.IsActive ? "danger" : null)"
+          data-confirm-title="@(Model.IsActive ? "Deactivate partner?" : "Activate partner?")"
+          data-confirm="@(Model.IsActive ? "They will no longer be able to sign in." : "They will be able to sign in again.")"
+          data-confirm-ok="@(Model.IsActive ? "Yes, deactivate" : "Yes, activate")">
+        <input type="hidden" name="active" value="@((!Model.IsActive).ToString().ToLowerInvariant())" />
+        <input type="hidden" name="returnTo" value="@(isSwitch ? "Index" : "Details")" />
+        @if (isSwitch)
+        {
+            <button type="submit" class="switch @(Model.IsActive ? "is-on" : "") has-tooltip" role="switch"
+                    aria-checked="@(Model.IsActive ? "true" : "false")" data-tip="@(Model.IsActive ? "Active — click to deactivate" : "Inactive — click to activate")">
+                <span class="switch-knob" aria-hidden="true"></span>
+                <span class="sr-only">@label @Model.Name</span>
+            </button>
+        }
+        else
+        {
+            <button type="submit" class="btn @(Model.IsActive ? "danger btn-deactivate" : "btn-secondary btn-activate")">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v9" /><path d="M6.4 6.6a8 8 0 1011.2 0" /></svg>
+                @label
+            </button>
+        }
+    </form>
+}

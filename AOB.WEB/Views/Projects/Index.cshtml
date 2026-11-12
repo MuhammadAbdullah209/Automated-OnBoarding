@@ -1,0 +1,395 @@
+@model AOB.WEB.ViewModels.Projects.ProjectsIndexViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.Common.Helpers
+@using AOB.BAL.DTOs.Projects
+@using AOB.WEB.Helpers
+@{
+    var createReturnUrl = NavigationReturnUrl.Current(Context.Request);
+    ViewData["Title"] = "Projects";
+    ViewData["FullBleed"] = true;
+
+    static string CustomerName(string? name) => string.IsNullOrWhiteSpace(name) ? "Unnamed customer" : name;
+
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var isPartnerCustomerList = User.IsInRole(nameof(UserType.Partner)) && ViewData["ActingCustomerId"] is Guid;
+
+    // Staff/partner open a project through Customers/{customerId}/Projects/...
+    Dictionary<string, string> RowRoute(ProjectSummaryDto p)
+    {
+        var route = new Dictionary<string, string> { ["id"] = p.Id.ToString() };
+        if (Model.IsAdminList || isPartnerCustomerList) route["customerId"] = p.CustomerId.ToString();
+        return route;
+    }
+
+    // Current view and filters as route values, so tabs and paging keep them.
+    Dictionary<string, string?> ListRoute(ProjectListView v, int? page = null) => new()
+    {
+        ["view"] = v == ProjectListView.All ? null : v.ToString(),
+        ["q"] = Model.Search,
+        ["status"] = Model.Status is { } st ? ((int)st).ToString() : null,
+        ["step"] = Model.Step is { } ps ? ((int)ps).ToString() : null,
+        ["from"] = Model.CreatedFrom?.ToString("yyyy-MM-dd"),
+        ["to"] = Model.CreatedTo?.ToString("yyyy-MM-dd"),
+        ["customer"] = Model.CustomerId?.ToString(),
+        ["page"] = page is > 1 ? page.ToString() : null
+    };
+
+    var showCreateProject = !readOnlyStaff && (!Model.IsAdminList
+        || ViewData["ActingCustomerId"] is Guid
+        || Model.CustomerId is Guid);
+
+    // Staff read the tabs from PCI Pal's side: "Needs you" is the customer's turn.
+    var viewTabs = new (ProjectListView Key, string Label)[]
+    {
+        (ProjectListView.All, "All"),
+        (ProjectListView.NeedsYou, readOnlyStaff ? "With customer" : "Needs you"),
+        (ProjectListView.WithPciPal, "With PCI Pal"),
+        (ProjectListView.BeingPrepared, "Being prepared"),
+        (ProjectListView.Live, "Live")
+    };
+
+    string StageCaption(ProjectSummaryDto p)
+    {
+        var j = ProjectOnboardingPresentation.Journey(p.Status, p.CurrentStep, p.InformationRequestStatus, p.CreatedAt,
+            hasAccountStep: p.RequiresAccount, awaitingUsersCsv: p.AwaitingUsersCsv);
+        var cur = j.FirstOrDefault(s => !string.IsNullOrEmpty(s.StateClass) && s.StateClass is not "done" and not "live");
+        if (string.IsNullOrEmpty(cur.Label))
+        {
+            cur = j.LastOrDefault(s => s.StateClass is "done" or "live" or "cur" or "wait" or "you");
+        }
+        return string.IsNullOrEmpty(cur.Subtext) ? cur.Label : $"{cur.Label} · {cur.Subtext}";
+    }
+
+    // Row button: customers and partners get the next action; staff open the case, and "Review" what waits on PCI Pal.
+    (string Label, bool Primary) RowAction(ProjectSummaryDto p)
+    {
+        var court = ProjectOnboardingPresentation.Court(p.Status, p.CurrentStep, p.InformationRequestStatus, p.AwaitingUsersCsv);
+        if (readOnlyStaff)
+        {
+            var staffTurn = p.DeletionScheduledFor is null
+                && (p.Status is ProjectStatus.Submitted or ProjectStatus.Approval
+                    || p.InformationRequestStatus == InformationRequestStatus.Submitted);
+            return staffTurn ? ("Review", true) : ("Open", false);
+        }
+        return (ProjectOnboardingPresentation.ActionLabel(p.Status, p.CurrentStep, p.InformationRequestStatus, p.AwaitingUsersCsv), court.Kind is "you" or "bad");
+    }
+
+    var setupSectionFilters = new (ProjectStep Step, string Label)[]
+    {
+        (ProjectStep.Discovery, "Business and use-case discovery"),
+        (ProjectStep.TechnicalEnvironment, "Technical environment"),
+        (ProjectStep.PaymentConfiguration, "Payment configuration"),
+        (ProjectStep.GatewayConfiguration, "Adaptive configuration"),
+        (ProjectStep.ReadinessCheck, "Readiness and submit")
+    };
+
+    var dateRangeInvalid = Model.CreatedFrom is { } fromDate && Model.CreatedTo is { } toDate && fromDate > toDate;
+    var allProjectCount = Model.ViewCounts.GetValueOrDefault(ProjectListView.All, Model.Result.TotalCount);
+    var showProjectViews = Model.ViewCounts.Count > 0 || allProjectCount > 0;
+    var showFilters = allProjectCount > 0 || Model.HasActiveFilter;
+
+    var selectedCustomer = Model.CustomerId is Guid sc ? Model.CustomerFilters.FirstOrDefault(c => c.Id == sc) : null;
+    var eyebrow = Model.IsAdminList
+        ? (selectedCustomer is not null ? CustomerName(selectedCustomer.CompanyName) : readOnlyStaff ? "All customers" : "Your customers")
+        : ViewData["UserCompanyName"] as string;
+    var lede = Model.IsAdminList
+        ? (readOnlyStaff
+            ? "Every customer’s projects, their stage and who has the next step."
+            : "Your customers’ projects, their stage and who has the next step.")
+        : "One project per PCI Pal service rollout. Each shows its stage and who has the next step.";
+}
+
+<div class="wrap rise projects-band">
+    <div class="projects-ph">
+        <div class="ttl">
+            @if (!string.IsNullOrWhiteSpace(eyebrow))
+            {
+                <div class="eyebrow">@eyebrow</div>
+            }
+            <h1 class="h1">Projects</h1>
+            @if (ViewData["ActingCustomerId"] is Guid actingId)
+            {
+                <p class="lede">Onboarding projects for this customer. <a asp-controller="Customers" asp-action="Details" asp-route-id="@actingId">Back to customer</a></p>
+            }
+            else
+            {
+                <p class="lede">@lede</p>
+            }
+        </div>
+        @if (showCreateProject)
+        {
+            <a asp-action="Create" asp-route-customer="@(Model.IsAdminList ? Model.CustomerId : null)" asp-route-returnUrl="@createReturnUrl" class="btn btn-primary">
+                <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                New project
+            </a>
+        }
+    </div>
+    @if (showProjectViews)
+    {
+        <div class="views" role="tablist" aria-label="Project views">
+            @foreach (var (key, label) in viewTabs)
+            {
+                if ((key == ProjectListView.Live || key == ProjectListView.WithPciPal)
+                    && Model.ViewCounts.Count > 0 && Model.ViewCounts.GetValueOrDefault(key) == 0 && Model.View != key)
+                {
+                    continue;
+                }
+                var count = Model.ViewCounts.GetValueOrDefault(key);
+                if (Model.ViewCounts.Count == 0 && key == ProjectListView.All)
+                {
+                    count = allProjectCount;
+                }
+                <a role="tab" asp-action="Index" asp-all-route-data="@(ListRoute(key))"
+                   aria-selected="@(Model.View == key ? "true" : "false")">
+                    @label
+                    @if (Model.ViewCounts.Count > 0 || key == ProjectListView.All)
+                    {
+                        <span class="c">@count</span>
+                    }
+                </a>
+            }
+        </div>
+    }
+</div>
+
+<div class="wrap rise projects-page">
+    <partial name="_FlashMessages" />
+
+    @if (showFilters)
+    {
+        <form asp-action="Index" method="get" class="filters @(Model.IsAdminList ? "filters--staff" : "")" role="search">
+            @if (Model.View != ProjectListView.All)
+            {
+                <input type="hidden" name="view" value="@Model.View" />
+            }
+            <div class="field search-f">
+                <label class="label" for="project-search">Search</label>
+                <div class="search">
+                    <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2" /><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                    <input id="project-search" class="input tinput" type="search" name="q" value="@Model.Search"
+                           placeholder="@(Model.IsAdminList ? "Project or company" : "Project name")" autocomplete="off" />
+                </div>
+            </div>
+            @if (Model.IsAdminList)
+            {
+                <div class="field">
+                    <label class="label" for="customer-filter">Customer</label>
+                    <select id="customer-filter" class="input select tinput" name="customer" onchange="this.form.requestSubmit()">
+                        <option value="">All customers</option>
+                        @foreach (var c in Model.CustomerFilters)
+                        {
+                            <option value="@c.Id" selected="@(Model.CustomerId == c.Id ? "selected" : null)">@CustomerName(c.CompanyName)</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label" for="status-filter">Status</label>
+                    <select id="status-filter" class="input select tinput" name="status" onchange="this.form.requestSubmit()">
+                        <option value="">Any status</option>
+                        @foreach (var (value, label) in ProjectOptions.ProjectStatusLabels)
+                        {
+                            <option value="@((int)value)" selected="@(Model.Status == value ? "selected" : null)">@label</option>
+                        }
+                    </select>
+                </div>
+            }
+            <div class="field">
+                <label class="label" for="section-filter">Current section</label>
+                <select id="section-filter" class="input select tinput" name="step" onchange="this.form.requestSubmit()">
+                    <option value="">Any section</option>
+                    @if (Model.IsAdminList)
+                    {
+                        @foreach (var (value, label) in ProjectOptions.ProjectStepLabels)
+                        {
+                            <option value="@((int)value)" selected="@(Model.Step == value ? "selected" : null)">@label</option>
+                        }
+                    }
+                    else
+                    {
+                        @foreach (var (step, label) in setupSectionFilters)
+                        {
+                            <option value="@((int)step)" selected="@(Model.Step == step ? "selected" : null)">@label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="field @(dateRangeInvalid ? "is-invalid" : "")">
+                <label class="label" for="created-from">Created from</label>
+                <input id="created-from" class="input tinput" type="date" name="from" value="@Model.CreatedFrom?.ToString("yyyy-MM-dd")" onchange="this.form.requestSubmit()" />
+            </div>
+            <div class="field @(dateRangeInvalid ? "is-invalid" : "")">
+                <label class="label" for="created-to">Created to</label>
+                <input id="created-to" class="input tinput" name="to" type="date" value="@Model.CreatedTo?.ToString("yyyy-MM-dd")" onchange="this.form.requestSubmit()" />
+            </div>
+            <div class="filters-clear">
+                @if (Model.IsAdminList ? Model.HasActiveFilter : Model.HasNonCustomerFilter)
+                {
+                    <a asp-action="Index" class="btn btn-text">Clear filters</a>
+                }
+            </div>
+            @if (dateRangeInvalid)
+            {
+                <div class="err" style="grid-column:1 / -1">
+                    <span>The “from” date is after the “to” date. Swap them to see results.</span>
+                </div>
+            }
+        </form>
+    }
+
+    <section class="sheet projects-sheet" style="overflow:hidden">
+        @if (Model.Result.Items.Count == 0)
+        {
+            <div class="empty">
+                <div class="art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                @if (Model.HasNonCustomerFilter)
+                {
+                    <h3 class="h3">No projects match</h3>
+                    <p class="muted">Try another view, change the search, or clear the filters.</p>
+                    <a asp-action="Index" class="btn btn-quiet btn-sm">Clear filters</a>
+                }
+                else if (Model.IsAdminList)
+                {
+                    <h2 class="h2">No projects yet</h2>
+                    <p class="muted" style="max-width:58ch">Projects appear here as soon as @(selectedCustomer is not null ? "this customer creates one" : "customers create them").</p>
+                    @if (showCreateProject)
+                    {
+                        <a asp-action="Create" asp-route-customer="@Model.CustomerId" asp-route-returnUrl="@createReturnUrl" class="btn btn-primary btn-sm">New project</a>
+                    }
+                }
+                else
+                {
+                    <h2 class="h2">No projects yet</h2>
+                    <p class="muted" style="max-width:58ch">Create a project, choose the PCI Pal services it covers, then answer four sections of setup questions. Nothing is sent to PCI Pal until you submit.</p>
+                    @if (showCreateProject)
+                    {
+                        <a asp-action="Create" asp-route-returnUrl="@createReturnUrl" class="btn btn-primary btn-sm">New project</a>
+                    }
+                }
+            </div>
+        }
+        else
+        {
+            <div class="ptable-wrap">
+                <table class="ptable projects-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Project</th>
+                            @if (Model.IsAdminList)
+                            {
+                                <th scope="col">Customer</th>
+                            }
+                            <th scope="col">Services</th>
+                            <th scope="col">Stage</th>
+                            <th scope="col">Next step with</th>
+                            <th scope="col">Created</th>
+                            <th scope="col"><span class="sr-only">Action</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Result.Items)
+                        {
+                            var openAction = p.DeletionScheduledFor is not null ? "PendingDeletion" : "Details";
+                            var action = RowAction(p);
+                            <tr onclick="window.location='@Url.Action(openAction, RowRoute(p))'">
+                                <td>
+                                    <div class="strong">@p.Name</div>
+                                    <div class="ref">@ProjectOnboardingPresentation.ShortReference(p.Id)</div>
+                                </td>
+                                @if (Model.IsAdminList)
+                                {
+                                    <td class="small">
+                                        <a asp-controller="Customers" asp-action="Details" asp-route-id="@p.CustomerId" class="link" onclick="event.stopPropagation()">@CustomerName(p.CustomerName)</a>
+                                    </td>
+                                }
+                                <td class="small">@string.Join(", ", p.Services.Select(s => ProjectOptions.ServiceLabels[s]))</td>
+                                <td style="min-width:170px">
+                                    <partial name="Onboarding/_JourneyMeter" model="@(p.Status, p.CurrentStep, p.InformationRequestStatus, p.CreatedAt, true, (BuildType?)null, p.RequiresAccount, p.AwaitingUsersCsv)" />
+                                    <div class="xsmall muted" style="margin-top:6px">@StageCaption(p)</div>
+                                </td>
+                                <td>
+                                    @if (p.DeletionScheduledFor is not null)
+                                    {
+                                        <span class="court bad"><span class="who">Deleting</span>Scheduled for deletion</span>
+                                    }
+                                    else
+                                    {
+                                        <partial name="Onboarding/_CourtBadge" model="@(p.Status, p.CurrentStep, p.InformationRequestStatus, p.AwaitingUsersCsv)" />
+                                    }
+                                </td>
+                                <td class="num small" style="white-space:nowrap">@p.CreatedAt.ToString("d MMM yyyy")</td>
+                                <td style="text-align:right" onclick="event.stopPropagation()">
+                                    @if (!readOnlyStaff && CustomerHomeQueue.IsReadyToSubmit(p))
+                                    {
+                                        <a asp-action="Readiness" asp-all-route-data="@RowRoute(p)" class="btn btn-sm btn-primary">Readiness check</a>
+                                    }
+                                    else
+                                    {
+                                        <a asp-action="@openAction" asp-all-route-data="@RowRoute(p)"
+                                           class="btn btn-sm @(action.Primary ? "btn-primary" : "btn-quiet")">@action.Label</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pcards ledger">
+                @foreach (var p in Model.Result.Items)
+                {
+                    var openAction = p.DeletionScheduledFor is not null ? "PendingDeletion" : "Details";
+                    <a class="lrow proj-row" asp-action="@openAction" asp-all-route-data="@RowRoute(p)">
+                        <span style="min-width:0">
+                            <span class="t" style="display:block">@p.Name</span>
+                            <span class="ref">@ProjectOnboardingPresentation.ShortReference(p.Id)@(Model.IsAdminList ? $" · {CustomerName(p.CustomerName)}" : "") · @p.CreatedAt.ToString("d MMM yyyy")</span>
+                        </span>
+                        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                        <span class="jmcell" style="grid-column:1/-1">
+                            <partial name="Onboarding/_JourneyMeter" model="@(p.Status, p.CurrentStep, p.InformationRequestStatus, p.CreatedAt, true, (BuildType?)null, p.RequiresAccount, p.AwaitingUsersCsv)" />
+                        </span>
+                        <span class="courtcell" style="grid-column:1/-1">
+                            @if (p.DeletionScheduledFor is not null)
+                            {
+                                <span class="court bad"><span class="who">Deleting</span>Scheduled for deletion</span>
+                            }
+                            else
+                            {
+                                <partial name="Onboarding/_CourtBadge" model="@(p.Status, p.CurrentStep, p.InformationRequestStatus, p.AwaitingUsersCsv)" />
+                            }
+                        </span>
+                    </a>
+                }
+            </div>
+
+            <div class="sheet-f">
+                <span class="small muted">
+                    Showing @Model.Result.FirstItemIndex–@Model.Result.LastItemIndex of @Model.Result.TotalCount @(Model.Result.TotalCount == 1 ? "project" : "projects")
+                </span>
+                @if (Model.Result.TotalPages > 1)
+                {
+                    <span class="spacer"></span>
+                    <nav class="row wrap" style="gap:8px" aria-label="Projects pagination">
+                        @if (Model.Result.HasPreviousPage)
+                        {
+                            <a class="btn btn-quiet btn-sm" asp-action="Index" asp-all-route-data="@ListRoute(Model.View, Model.Result.Page - 1)">Previous</a>
+                        }
+                        else
+                        {
+                            <span class="btn btn-quiet btn-sm" aria-disabled="true">Previous</span>
+                        }
+                        <span class="small muted">Page @Model.Result.Page of @Model.Result.TotalPages</span>
+                        @if (Model.Result.HasNextPage)
+                        {
+                            <a class="btn btn-quiet btn-sm" asp-action="Index" asp-all-route-data="@ListRoute(Model.View, Model.Result.Page + 1)">Next</a>
+                        }
+                        else
+                        {
+                            <span class="btn btn-quiet btn-sm" aria-disabled="true">Next</span>
+                        }
+                    </nav>
+                }
+            </div>
+        }
+    </section>
+</div>

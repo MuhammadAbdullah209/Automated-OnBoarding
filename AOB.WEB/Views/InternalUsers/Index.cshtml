@@ -1,0 +1,107 @@
+@model IReadOnlyList<AOB.BAL.DTOs.Auth.InternalUserSummaryDto>
+@{
+    ViewData["Title"] = "Internal users";
+    ViewData["Crumbs"] = "Internal users";
+}
+
+<div class="rise">
+    <div class="ph">
+        <div class="ttl">
+            <h1 class="h1" style="margin-top:6px">Internal users</h1>
+            <p class="lede" style="margin-top:4px">Staff accounts that manage partners, document types and platform configuration.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            Add internal user
+        </a>
+    </div>
+
+    <div class="page-stack">
+        <partial name="_FlashMessages" />
+
+        <section class="sheet" style="overflow:hidden">
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3">All internal users</h2>
+                    <p class="small muted">@Model.Count @(Model.Count == 1 ? "user" : "users")</p>
+                </div>
+            </div>
+
+            @if (Model.Count == 0)
+            {
+                <div class="empty">
+                    <div class="art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                    <h3 class="h3">No internal users yet</h3>
+                    <p>Create staff accounts for your team.</p>
+                    <a asp-action="Create" class="btn btn-primary btn-sm">Add internal user</a>
+                </div>
+            }
+            else
+            {
+                <div class="table-scroll">
+                    <table class="ptable static">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="name">@u.FullName</span>
+                                        <span class="cell-sub">@u.Email</span>
+                                    </td>
+                                    <td>
+                                        <span class="tag @(u.IsSuperAdmin ? "pp" : "blue")">@(u.IsSuperAdmin ? "Super admin" : "Internal user")</span>
+                                    </td>
+                                    <td>
+                                        <span class="tag-row">
+                                            <span class="tag @(u.IsActive ? "ok" : "")">@(u.IsActive ? "Active" : "Inactive")</span>
+                                            @if (!u.EmailConfirmed)
+                                            {
+                                                <span class="tag you" title="Has not verified their email yet, so cannot sign in">Pending verification</span>
+                                            }
+                                        </span>
+                                    </td>
+                                    <td class="text-muted">@u.CreatedAt.ToString("d MMM yyyy")</td>
+                                    <td class="col-actions">
+                                        @if (!u.IsSuperAdmin)
+                                        {
+                                            <div class="row-actions">
+                                                @* Name and email are locked once the user has verified their email. *@
+                                                @if (!u.EmailConfirmed)
+                                                {
+                                                    <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-text btn-sm">Edit</a>
+                                                }
+                                                @if (!u.EmailConfirmed && u.IsActive)
+                                                {
+                                                    <form asp-action="ResendVerification" asp-route-id="@u.Id" method="post" class="admin-inline-form">
+                                                        <button type="submit" class="btn btn-text btn-sm">Resend verification</button>
+                                                    </form>
+                                                }
+                                                <form asp-action="SetActive" asp-route-id="@u.Id" method="post" class="admin-inline-form"
+                                                      data-confirm-title="@(u.IsActive ? $"Deactivate {u.FullName}?" : $"Activate {u.FullName}?")"
+                                                      data-confirm="@(u.IsActive ? "They will no longer be able to sign in. You can activate them again at any time." : "They will be able to sign in again.")"
+                                                      data-confirm-ok="@(u.IsActive ? "Deactivate" : "Activate")"
+                                                      data-confirm-tone="@(u.IsActive ? "danger" : null)">
+                                                    <input type="hidden" name="active" value="@((!u.IsActive).ToString().ToLowerInvariant())" />
+                                                    <button type="submit" class="btn btn-sm @(u.IsActive ? "danger" : "btn-secondary")">@(u.IsActive ? "Deactivate" : "Activate")</button>
+                                                </form>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+</div>

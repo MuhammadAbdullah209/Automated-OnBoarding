@@ -1,0 +1,104 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Enums
+@{
+    var active = ViewContext.RouteData.Values["action"]?.ToString();
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+
+    var setupDone = (Model.HasDiscovery ? 1 : 0)
+                    + (Model.HasTechnicalEnvironment ? 1 : 0)
+                    + (Model.HasPaymentConfiguration ? 1 : 0)
+                    + (Model.HasGatewayConfiguration ? 1 : 0);
+
+    // Each section needs the one before it (the controller enforces this), so later ones stay locked until then.
+    var steps = new (string Action, string Label, string No, bool Done, string? NeedsLabel)[]
+    {
+        ("Details", "Overview", "list", Model.IsSubmitted, null),
+        ("Discovery", "Discovery", "01", Model.HasDiscovery, null),
+        ("TechnicalEnvironment", "Technical environment", "02", Model.HasTechnicalEnvironment, Model.HasDiscovery ? null : "Discovery"),
+        ("PaymentConfiguration", "Payment configuration", "03", Model.HasPaymentConfiguration, Model.HasTechnicalEnvironment ? null : "Technical environment"),
+        ("GatewayConfiguration", "Adaptive configuration", "04", Model.HasGatewayConfiguration, Model.HasPaymentConfiguration ? null : "Payment configuration")
+    };
+
+    string Subtitle(string action, bool done, string? needs)
+    {
+        if (action == "Details")
+        {
+            return Model.IsSubmitted ? "Submitted" : $"{setupDone} of 4 complete";
+        }
+        if (done) return "Complete";
+        return needs is null ? "Not started" : $"Finish {needs} first";
+    }
+
+    Dictionary<string, string> Route() => actingCustomerId is Guid cid
+        ? new() { ["customerId"] = cid.ToString(), ["id"] = Model.Id.ToString() }
+        : new() { ["id"] = Model.Id.ToString() };
+
+    var readinessDone = Model.IsReadyToSubmit || Model.IsSubmitted;
+}
+
+<nav class="rail" aria-label="Setup sections">
+    <div class="rl">Setup</div>
+    @foreach (var step in steps)
+    {
+        var isCurrent = active == step.Action;
+        var locked = !readOnlyStaff && step.NeedsLabel is not null && !step.Done && !Model.IsSubmitted;
+        var stateClass = step.Done ? "done" : locked ? "locked" : "";
+        var subtitle = Subtitle(step.Action, step.Done, locked ? step.NeedsLabel : null);
+
+        @if (locked && !isCurrent)
+        {
+            <span class="rs locked" aria-disabled="true" title="@subtitle">
+                <span class="rn" aria-hidden="true">
+                    <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                </span>
+                <span>
+                    <span class="rt">@step.Label</span>
+                    <span class="rsub">@subtitle</span>
+                </span>
+            </span>
+        }
+        else
+        {
+            <a class="rs @stateClass" asp-controller="Projects" asp-action="@step.Action" asp-all-route-data="@Route()"
+               aria-current="@(isCurrent ? "step" : null)">
+                <span class="rn" aria-hidden="true">
+                    @if (step.No == "list")
+                    {
+                        <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3 6h.01M3 12h.01M3 18h.01" /></svg>
+                    }
+                    else if (step.Done && !isCurrent)
+                    {
+                        <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6 9 17l-5-5" /></svg>
+                    }
+                    else
+                    {
+                        @step.No
+                    }
+                </span>
+                <span>
+                    <span class="rt">@step.Label</span>
+                    <span class="rsub">@subtitle</span>
+                </span>
+            </a>
+        }
+    }
+    <div class="rail-sep"></div>
+    <a class="rs @(readinessDone ? "done" : "")" asp-controller="Projects" asp-action="Readiness" asp-all-route-data="@Route()"
+       aria-current="@(active == "Readiness" ? "step" : null)">
+        <span class="rn" aria-hidden="true">
+            @if (Model.IsSubmitted && active != "Readiness")
+            {
+                <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6 9 17l-5-5" /></svg>
+            }
+            else
+            {
+                <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+            }
+        </span>
+        <span>
+            <span class="rt">Readiness and submit</span>
+            <span class="rsub">@(Model.IsSubmitted ? "Submitted" : readinessDone ? "Ready to submit" : "Finish sections first")</span>
+        </span>
+    </a>
+</nav>

@@ -1,0 +1,25 @@
+@model AOB.BAL.DTOs.Documents.DocumentTypeDto
+@{
+    ViewData["Title"] = "Add document type";
+    ViewData["Crumbs"] = "Document types / Add document type";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a asp-action="Index">Document types</a><span class="crumb-sep" aria-hidden="true">›</span><span>Add document type</span>
+            </nav>
+            <h1 class="h1">Add document type</h1>
+            <p class="lede" style="margin-top:4px">Define a document customers can be asked to upload.</p>
+        </div>
+    </div>
+
+    <div class="page-stack form-page">
+        <partial name="_Form" model="Model" view-data='new ViewDataDictionary(ViewData) { ["SubmitLabel"] = "Add document type" }' />
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,200 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@*
+    The users a custom build's account is created for. The customer (or a partner acting for them) uploads a CSV
+    (name, email, role); an internal user can ask for it. Staff see the list. Ids in the form come from the route.
+*@
+@{
+    var users = ViewData["CustomerUsers"] as IReadOnlyList<CustomerUserDto> ?? Array.Empty<CustomerUserDto>();
+    var isStaff = ViewData["ReadOnlyStaff"] is true;
+    var stepsComplete = ViewData["ProvisioningStepsComplete"] is true;
+    var visible = Model.RequiresAccount
+        && Model.Status is ProjectStatus.AccountCreation or ProjectStatus.Completed
+        && (stepsComplete || users.Count > 0);
+    var canUpload = !isStaff && Model.Status == ProjectStatus.AccountCreation && ViewData["AccountCreated"] is not true;
+    var awaitingUpload = Model.UsersCsvRequestedAt is not null && users.Count == 0;
+    var useStaffSheet = ViewData["StaffOverviewSheets"] is true;
+    var statusTag = users.Count > 0
+        ? ("ok", $"{users.Count} user{(users.Count == 1 ? "" : "s")}")
+        : awaitingUpload
+            ? (isStaff ? "pp" : "you", isStaff ? "Requested" : "Needed from you")
+            : ("", "No users yet");
+}
+
+@if (visible)
+{
+    <section class="sheet users-sheet @(useStaffSheet ? "staff-overview-sheet" : "")" id="users-card" aria-labelledby="users-h">
+        <div class="sheet-h">
+            <div class="sheet-ttl">
+                <h2 class="h3" id="users-h">@(isStaff ? "Account users" : "Your users list")</h2>
+                <p class="small muted">
+                    @(isStaff
+                        ? "The people the customer’s PCI Pal account is created for."
+                        : "Everyone who needs a PCI Pal account. We create the accounts from this list.")
+                </p>
+            </div>
+            <span class="tag @statusTag.Item1">@statusTag.Item2</span>
+        </div>
+
+        @if (canUpload)
+        {
+            <form asp-action="UploadUsersCsv" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="users-upload-form" novalidate>
+                @Html.AntiForgeryToken()
+                <div class="sheet-b stack">
+                    @if (awaitingUpload)
+                    {
+                        <div class="note you" role="status">
+                            <span class="ni" aria-hidden="true">
+                                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></svg>
+                            </span>
+                            <div>
+                                <div class="nt">PCI Pal is waiting for this list</div>
+                                <div class="nd">Upload it to continue creating your account.</div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="field">
+                        <label class="field-label" for="users-csv-@Model.Id">@(users.Count > 0 ? "Replace the list" : "Users CSV file")</label>
+                        <div class="hint" id="users-csv-hint-@Model.Id">A .csv file with one person per line. @(users.Count > 0 ? "Uploading a new file replaces the current list." : "")</div>
+                        <label class="drop" data-drop>
+                            <input type="file" id="users-csv-@Model.Id" name="usersCsv" accept=".csv,text/csv" required aria-describedby="users-csv-hint-@Model.Id" />
+                            <span class="drop-ic" aria-hidden="true" data-drop-icon>
+                                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                            </span>
+                            <span style="flex:1;min-width:0">
+                                <span class="strong" data-drop-label>Drop your CSV here, or choose a file</span>
+                                <span class="small muted" style="display:block" data-drop-sub>CSV only</span>
+                            </span>
+                            <span class="btn btn-sm btn-quiet" aria-hidden="true">Choose file</span>
+                        </label>
+                        <div class="err" data-drop-error hidden>
+                            <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
+                            <span data-drop-error-text></span>
+                        </div>
+                    </div>
+
+                    <div class="flist">
+                        <div class="flist-h">
+                            <span class="strong">File format</span>
+                            <span class="xsmall muted">Three columns. A header row is optional. <a href="~/templates/users-template.csv" download="users-template.csv">Download CSV template</a></span>
+                        </div>
+                        <div class="frow"><span class="fk">name,email,role</span></div>
+                        <div class="frow"><span class="fk">Jane Smith,jane.smith@example.com,admin</span></div>
+                        <div class="frow"><span class="fk">Sam Patel,sam.patel@example.com,user</span></div>
+                        <div class="frow small muted" style="font-family:inherit">Role is <span class="mono">admin</span> or <span class="mono">user</span>. Each email can appear once.</div>
+                    </div>
+                </div>
+                <div class="sheet-f">
+                    <span class="small muted">@(awaitingUpload ? "PCI Pal continues as soon as you upload." : "You can upload now. PCI Pal may also ask for this file later.")</span>
+                    <span class="spacer"></span>
+                    <button type="submit" class="btn btn-primary">
+                        <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                        @(users.Count > 0 ? "Replace list" : "Upload users")
+                    </button>
+                </div>
+            </form>
+        }
+        else if (users.Count == 0)
+        {
+            <div class="empty">
+                <div class="art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                <h3 class="h3">No users yet</h3>
+                <p>
+                    @if (awaitingUpload)
+                    {
+                        @:Waiting for the customer to upload the users CSV.
+                    }
+                    else
+                    {
+                        @:No users uploaded yet. The customer can upload a CSV when they are ready.
+                    }
+                </p>
+            </div>
+        }
+
+        @if (users.Count > 0)
+        {
+            <div class="table-scroll" style="@(canUpload ? "border-top:1px solid var(--line)" : "")">
+                <table class="ptable static users-table-compact">
+                    <thead>
+                        <tr><th>Name</th><th>Email</th><th>Role</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
+                        {
+                            <tr>
+                                <td><span class="name">@user.Name</span></td>
+                                <td class="text-muted">@user.Email</td>
+                                <td><span class="tag @(user.Role == CustomerUserRole.Admin ? "blue" : "")">@user.Role</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @if (canUpload)
+    {
+        <script>
+            (function () {
+                var card = document.getElementById('users-card');
+                var zone = card && card.querySelector('[data-drop]');
+                if (!zone) return;
+                var form = zone.closest('form');
+                var input = zone.querySelector('input[type="file"]');
+                var label = zone.querySelector('[data-drop-label]');
+                var sub = zone.querySelector('[data-drop-sub]');
+                var error = card.querySelector('[data-drop-error]');
+                var errorText = card.querySelector('[data-drop-error-text]');
+                var defaultLabel = label.textContent;
+                var defaultSub = sub.textContent;
+
+                function showError(message) {
+                    errorText.textContent = message;
+                    error.hidden = !message;
+                    input.setAttribute('aria-invalid', message ? 'true' : 'false');
+                    zone.classList.toggle('is-invalid', !!message);
+                }
+                function isCsv(file) { return /\.csv$/i.test(file.name); }
+
+                input.addEventListener('change', function () {
+                    var file = input.files[0];
+                    if (!file) {
+                        label.textContent = defaultLabel;
+                        sub.textContent = defaultSub;
+                        zone.classList.remove('has-file');
+                        return;
+                    }
+                    if (!isCsv(file)) {
+                        input.value = '';
+                        label.textContent = defaultLabel;
+                        sub.textContent = defaultSub;
+                        zone.classList.remove('has-file');
+                        showError('Choose a .csv file. “' + file.name + '” isn’t a CSV.');
+                        return;
+                    }
+                    showError('');
+                    label.textContent = file.name;
+                    sub.textContent = (file.size < 1024 ? file.size + ' bytes' : Math.ceil(file.size / 1024) + ' KB') + ' · ready to upload';
+                    zone.classList.add('has-file');
+                });
+                form.addEventListener('submit', function (e) {
+                    if (!input.files.length) {
+                        e.preventDefault();
+                        showError('Choose a CSV file to upload.');
+                        input.focus();
+                    }
+                });
+                ['dragenter', 'dragover'].forEach(function (name) {
+                    zone.addEventListener(name, function () { zone.classList.add('is-over'); });
+                });
+                ['dragleave', 'drop'].forEach(function (name) {
+                    zone.addEventListener(name, function () { zone.classList.remove('is-over'); });
+                });
+            })();
+        </script>
+    }
+}

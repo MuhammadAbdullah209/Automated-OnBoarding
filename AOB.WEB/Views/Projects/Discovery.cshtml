@@ -1,0 +1,189 @@
+@model AOB.BAL.DTOs.Projects.ProjectDiscoveryDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.WEB.Helpers
+@{
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = "Business & Use-Case Discovery";
+    var project = (AOB.BAL.DTOs.Projects.ProjectOverviewDto)ViewData["Project"]!;
+    ViewData["FlowSubtitle"] = $"Business & use-case discovery · {ProjectOptions.ProjectStatusLabels[project.Status]}";
+    ViewData["DocSectionNo"] = "01";
+    ViewData["DocTitle"] = "Business and use-case discovery";
+    ViewData["DocLede"] = "How your customers pay and how your team is involved. These answers decide which questions come next.";
+    ViewData["FlowBackAction"] = "Details";
+    ViewData["FlowBackLabel"] = "Overview";
+    var comingSoon = Enum.GetValues<PciPalService>().Where(s => !ProjectOptions.AvailableServices.Contains(s));
+    var isCrm = Model.CrmSystem == CrmSystem.Crm;
+    var isEmbedded = Model.CrmPaymentExperience == CrmPaymentExperience.EmbeddedIframe;
+    var anotherWay = Model.CurrentPaymentMethods.Contains(CurrentPaymentMethod.AnotherWay);
+    var hasPhone = Model.CurrentPaymentMethods.Contains(CurrentPaymentMethod.PhoneCallWithAgent);
+}
+
+<form asp-action="Discovery" asp-route-id="@project.Id" method="post" class="doc rise project-flow-form">
+    <partial name="_ProjectDocHeader" />
+    <div class="ctxwrap">
+        <div class="note ctxnote">
+            <span class="ni" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            </span>
+            <div>
+                <div class="nt">Why we ask</div>
+                <div class="nd">These answers decide which questions appear later. Nothing here commits you to a configuration.</div>
+            </div>
+        </div>
+    </div>
+    <div class="doc-paper project-flow-primary">
+        <div asp-validation-summary="ModelOnly" class="form-errors" role="alert"></div>
+
+        <section class="flow-section flow-section--first qrow">
+            <h5 class="flow-section-title req qt">Which PCI Pal services do you want?</h5>
+            <p class="flow-section-hint qd">Choose all that apply.</p>
+            <div class="qctl">
+                @Html.EnumCardCheckboxes("Services", ProjectOptions.ServiceLabels, Model.Services, ProjectFormMetadata.ServiceCards, comingSoon, disabledBadge: "Coming soon", layout: "grid-3-proto")
+                <span asp-validation-for="Services" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title req qt">What system does your team use?</h5>
+            <p class="flow-section-hint qd">Pick the closest match. No specialist knowledge needed.</p>
+            <div class="qctl">
+                <select asp-for="CrmSystem" asp-items="Html.EnumSelectItems(ProjectOptions.CrmSystemLabels)" class="form-select p-dropdown" id="CrmSystem">
+                    <option value="" selected>Select a system</option>
+                </select>
+                <span asp-validation-for="CrmSystem" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section id="crmExperienceSection" class="flow-section qrow">
+            <h5 class="flow-section-title req qt">How should the payment page be shown?</h5>
+            <p class="flow-section-hint qd">Embedded keeps agents on one screen and needs no PCI Pal account. Hosted opens a PCI Pal page and an account is created for your users.</p>
+            <div class="qctl">
+                @Html.EnumCardRadios("CrmPaymentExperience", ProjectOptions.CrmPaymentExperienceLabels, Model.CrmPaymentExperience, cardMeta: ProjectFormMetadata.CrmExperienceCards, layout: "grid-2-proto")
+                <span asp-validation-for="CrmPaymentExperience" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <section id="portalUrlsSection" class="flow-section qrow reveal @(isEmbedded ? "" : "is-hidden")">
+            <h5 class="flow-section-title req qt">Portal URLs</h5>
+            <p class="flow-section-hint qd">Every CRM page where the form will appear. One per line, starting with <code>https://</code>. Include test and production.</p>
+            <span class="why" aria-hidden="true">
+                <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                Because the form is embedded
+            </span>
+            <div class="qctl">
+                <textarea asp-for="PortalUrls" class="form-control mono" rows="4"
+                          placeholder="https://crm.yourcompany.com/payments&#10;https://test-crm.yourcompany.com/payments"></textarea>
+                <span asp-validation-for="PortalUrls" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section class="flow-section qrow">
+            <h5 class="flow-section-title req qt">How do your customers pay today?</h5>
+            <p class="flow-section-hint qd">Choose all that apply.</p>
+            <div class="qctl">
+                @Html.EnumCardCheckboxes("CurrentPaymentMethods", ProjectOptions.CurrentPaymentMethodLabels, Model.CurrentPaymentMethods, ProjectFormMetadata.PaymentMethodCards, layout: "grid-auto-proto")
+                <span asp-validation-for="CurrentPaymentMethods" class="text-danger d-block"></span>
+            </div>
+        </section>
+
+        <div id="phoneNoticeRow" class="qrow reveal flow-section-note @(hasPhone ? "" : "is-hidden")">
+            <div class="note ctxnote">
+                <span class="ni" aria-hidden="true">
+                    <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </span>
+                <div>
+                    <div class="nt">Contact centre questions added</div>
+                    <div class="nd">Because customers pay on calls with an agent, Adaptive configuration now asks about your contact centre platform.</div>
+                </div>
+            </div>
+        </div>
+
+        <section class="flow-section qrow">
+            <h5 id="journeyTitle" class="flow-section-title qt @(anotherWay ? "req" : "")">
+                Describe your payment journey
+                <span id="journeyOptBadge" class="opt @(anotherWay ? "is-hidden" : "")">Optional</span>
+            </h5>
+            <p id="journeyHint" class="flow-section-hint qd">
+                @(anotherWay
+                    ? "Required because you chose “Another way”."
+                    : "Anything that helps us understand how payments happen today.")
+            </p>
+            <div class="qctl">
+                <textarea asp-for="PaymentJourneyDescription" class="form-control" rows="3" id="PaymentJourneyDescription"
+                          placeholder="e.g. Renewal calls are transferred from our IVR to a specialist team, who take payment on the call."></textarea>
+                <span asp-validation-for="PaymentJourneyDescription" class="text-danger"></span>
+            </div>
+        </section>
+    </div>
+    <partial name="_ProjectFlowActionBar" />
+</form>
+
+@section Scripts {
+ 
+    <script>
+        (function () {
+            const crmSystem = document.getElementById('CrmSystem');
+            const crmExperienceSection = document.getElementById('crmExperienceSection');
+            const portalUrlsSection = document.getElementById('portalUrlsSection');
+            const phoneNoticeRow = document.getElementById('phoneNoticeRow');
+            const journeyTitle = document.getElementById('journeyTitle');
+            const journeyOptBadge = document.getElementById('journeyOptBadge');
+            const journeyHint = document.getElementById('journeyHint');
+
+            const crmValue = '@nameof(CrmSystem.Crm)';
+            const embeddedValue = '@nameof(CrmPaymentExperience.EmbeddedIframe)';
+            const anotherWayValue = '@nameof(CurrentPaymentMethod.AnotherWay)';
+            const phoneValue = '@nameof(CurrentPaymentMethod.PhoneCallWithAgent)';
+
+            function experienceInputs() {
+                return document.querySelectorAll('input[name="CrmPaymentExperience"]');
+            }
+
+            function paymentMethodInputs() {
+                return document.querySelectorAll('input[name="CurrentPaymentMethods"]');
+            }
+
+            function isEmbeddedSelected() {
+                return Array.from(experienceInputs()).some(r => r.checked && r.value === embeddedValue);
+            }
+
+            function isAnotherWaySelected() {
+                return Array.from(paymentMethodInputs()).some(c => c.checked && c.value === anotherWayValue);
+            }
+
+            function isPhoneSelected() {
+                return Array.from(paymentMethodInputs()).some(c => c.checked && c.value === phoneValue);
+            }
+
+            function setHidden(el, hidden) {
+                el.classList.toggle('is-hidden', hidden);
+            }
+
+            function syncPortalSection() {
+                setHidden(portalUrlsSection, !isEmbeddedSelected());
+            }
+
+            function syncPaymentSections() {
+                const another = isAnotherWaySelected();
+                journeyTitle.classList.toggle('req', another);
+                setHidden(journeyOptBadge, another);
+                journeyHint.textContent = another
+                    ? 'Required because you chose “Another way”.'
+                    : 'Anything that helps us understand how payments happen today.';
+                setHidden(phoneNoticeRow, !isPhoneSelected());
+            }
+
+            const form = crmSystem.closest('form');
+            form.addEventListener('change', function (e) {
+                const t = e.target;
+                if (!t || !t.name) return;
+                if (t.name === 'CrmPaymentExperience') syncPortalSection();
+                if (t.name === 'CurrentPaymentMethods') syncPaymentSections();
+            });
+
+            syncPortalSection();
+            syncPaymentSections();
+        })();
+    </script>
+}

@@ -1,0 +1,81 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Enums
+@{
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+
+    // Each section needs the one before it (the controller enforces this), so a later one stays locked until then.
+    var sections = new (int No, string Title, string Short, string Lede, string Action, ProjectStep Step, bool Done)[]
+    {
+        (1, "Business and use-case discovery", "Discovery", "How your customers pay and how your team is involved. These answers decide which questions come next.", "Discovery", ProjectStep.Discovery, Model.HasDiscovery),
+        (2, "Technical environment", "Technical environment", "The systems and PCI Pal regions you’ll use, and whether your network allows outbound connections.", "TechnicalEnvironment", ProjectStep.TechnicalEnvironment, Model.HasTechnicalEnvironment),
+        (3, "Payment configuration", "Payment configuration", "Your payment provider, accepted cards, currencies and how card numbers are shown afterwards.", "PaymentConfiguration", ProjectStep.PaymentConfiguration, Model.HasPaymentConfiguration),
+        (4, "Adaptive configuration", "Adaptive configuration", "The data fields your gateway uses and how payment results return to your system.", "GatewayConfiguration", ProjectStep.GatewayConfiguration, Model.HasGatewayConfiguration),
+    };
+
+    string State(int index)
+    {
+        var s = sections[index];
+        if (s.Done) return "done";
+        if (index > 0 && !sections[index - 1].Done) return "locked";
+        if ((int)Model.CurrentStep > (int)s.Step) return "warn";
+        return "todo";
+    }
+
+    var nextAction = sections.FirstOrDefault(s => !s.Done).Action;
+}
+
+<div class="overview-rsecs">
+    @for (var i = 0; i < sections.Length; i++)
+    {
+        var s = sections[i];
+        var st = State(i);
+        var tickClass = st switch { "done" => "on", "warn" => "warn", "locked" => "locked", _ => "" };
+        var statusText = st switch
+        {
+            "done" => "Complete",
+            "warn" => "Answers missing",
+            "locked" => $"Available after {sections[i - 1].Short}",
+            _ => "Not started"
+        };
+        var isNext = s.Action == nextAction;
+        var btnLabel = st switch { "done" => "Review", "warn" => "Continue", _ => "Start" };
+        var btnClass = isNext ? "btn btn-sm btn-primary" : st == "done" ? "btn btn-sm btn-text" : "btn btn-sm btn-quiet";
+        <div class="rsec rsec--@st @(isNext ? "is-next" : "")">
+            <span class="tick @tickClass" style="width:28px;height:28px" aria-hidden="true">
+                @if (st == "done")
+                {
+                    <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                }
+                else if (st == "warn")
+                {
+                    <text>!</text>
+                }
+                else if (st == "locked")
+                {
+                    <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                }
+                else
+                {
+                    <span class="mono" style="font-size:11px;font-weight:600">@s.No.ToString("00")</span>
+                }
+            </span>
+            <div>
+                <div class="strong">@s.Title</div>
+                <div class="small muted">@s.Lede</div>
+                <div class="xsmall rsec-status @(st == "warn" ? "rsec-status--warn" : "muted")">@statusText</div>
+            </div>
+            @if (st == "locked")
+            {
+                <span class="xsmall muted rsec-locked-note">Locked</span>
+            }
+            else if (actingCustomerId is Guid customerId)
+            {
+                <a asp-controller="Projects" asp-action="@s.Action" asp-route-customerId="@customerId" asp-route-id="@Model.Id" class="@btnClass">@btnLabel</a>
+            }
+            else
+            {
+                <a asp-action="@s.Action" asp-route-id="@Model.Id" class="@btnClass">@btnLabel</a>
+            }
+        </div>
+    }
+</div>

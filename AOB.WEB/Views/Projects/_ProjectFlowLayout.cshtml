@@ -1,0 +1,30 @@
+@using AOB.BAL.DTOs.Projects
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["FullBleed"] = true;
+    var project = ViewData["Project"] as ProjectOverviewDto;
+}
+<partial name="_StepTempDataAlerts" />
+@if (project is not null)
+{
+    @if (ViewData["ShowProvSubmittedBanner"] is true)
+    {
+        <partial name="_ProvSubmittedBanner" />
+    }
+    <partial name="_ProjectWorkspaceBand" model="project" />
+    <div class="wrap ws-body @(ViewData["ProjectHubMode"] is true ? "ws-body--hub" : "")">
+        @if (ViewData["ProjectHubMode"] is not true)
+        {
+            <partial name="_ProjectStepNav" model="project" />
+        }
+        <div class="ws-main">
+            @RenderBody()
+        </div>
+    </div>
+}
+else
+{
+    @RenderBody()
+}
+@RenderSection("Scripts", required: false)
+

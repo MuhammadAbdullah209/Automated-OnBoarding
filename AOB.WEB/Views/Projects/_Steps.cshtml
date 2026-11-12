@@ -1,0 +1,15 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@{
+    var active = ViewContext.RouteData.Values["action"]?.ToString();
+}
+
+<partial name="_StepTempDataAlerts" />
+
+<partial name="_ProjectStepHeader" model="Model" />
+
+@if (Model.IsSubmitted && active != "Details" && active != "Readiness" && active != "Summary")
+{
+    <div class="note" role="status">
+        <div><p class="nd">This project has been submitted and can no longer be edited.</p></div>
+    </div>
+}

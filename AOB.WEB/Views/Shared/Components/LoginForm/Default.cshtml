@@ -1,0 +1,44 @@
+@model AOB.WEB.ViewModels.Auth.LoginViewModel
+
+<form asp-controller="Auth" asp-action="Login" method="post" class="stack auth-form" data-auth-form novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+    <input asp-for="ReturnUrl" type="hidden" />
+
+    <div class="field">
+        <label asp-for="Email" class="label req"></label>
+        <input asp-for="Email" class="tinput input" autocomplete="username" placeholder="name@company.com" />
+        <span asp-validation-for="Email"></span>
+    </div>
+    <div class="field">
+        <div class="field-row">
+            <label asp-for="Password" class="label req"></label>
+            <a asp-controller="Auth" asp-action="ForgotPassword" class="link small">Forgot password?</a>
+        </div>
+        <div class="input-wrap">
+            <input asp-for="Password" class="tinput input" autocomplete="current-password" id="login-password" />
+            <button type="button" class="eye" aria-label="Show password" data-password-toggle data-target="login-password">
+                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+            </button>
+        </div>
+        <span asp-validation-for="Password"></span>
+    </div>
+    <label class="check">
+        <input asp-for="RememberMe" type="checkbox" />
+        <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5l3 3 7-7" /></svg>
+        </span>
+        <span>@Html.DisplayNameFor(m => m.RememberMe)</span>
+    </label>
+
+    <div class="auth-actions">
+        <button type="submit" class="btn btn-primary btn-lg btn-block sweep"><span class="spinner" aria-hidden="true"></span>Sign in</button>
+    </div>
+</form>
+
+<div class="or"><span>New here?</span></div>
+<a asp-controller="Auth" asp-action="Register" class="btn btn-quiet btn-lg btn-block">Create an onboarding account</a>
+<p class="center-s small muted auth-resend">
+    Verification email didn't arrive?
+    <a asp-controller="Auth" asp-action="CheckEmail" class="link small">Send it again</a>
+</p>

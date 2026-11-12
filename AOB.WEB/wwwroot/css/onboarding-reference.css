@@ -1,0 +1,160 @@
+/* PCI Pal self-onboarding portal — design tokens and typography (prototype v1.2 handoff).
+   Source: PCI-Pal-Onboarding-Prototype/index.html */
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-sans-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-sans-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-sans-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');
+}
+
+:root {
+  color-scheme: light;
+  --color-primary: #2559b1;
+  --color-primary-light: #4f7fd0;
+  --color-primary-dark: #1d4fa5;
+  --color-primary-tint: #d0dfff;
+  --color-cta: #ffb000;
+  --color-cta-hover: #ffa000;
+  --color-cta-pressed: #f29600;
+  --color-on-cta: #0f0d0e;
+  --color-secondary: #7a3ff0;
+  --color-bg-deep: #a7bfe5;
+  --color-bg: #bdd5fb;
+  --color-bg-mid: #b7cff5;
+  --color-bg-glow: #d0dfff;
+  --color-text: #0f0d0e;
+  --color-text-muted: #4a5878;
+  --color-text-on-dark-muted: #3b4a66;
+  --color-surface: #ffffff;
+  --color-border: #d6e0f2;
+  --color-track: #e3e6ee;
+  --color-success: #14803c;
+  --color-warning: #b45309;
+
+  --ink: var(--color-text);
+  --ink-2: #36415f;
+  --ink-3: var(--color-text-muted);
+  --mute: #858fa9;
+  --band: var(--color-bg);
+  --band-sub: var(--color-text-on-dark-muted);
+  --band-line: rgba(15, 13, 14, .14);
+  --paper: var(--color-surface);
+  --canvas: #eef3fc;
+  --wash: #e7eefa;
+  --line: var(--color-border);
+  --line-2: #cfd6e6;
+  --control: #858fa9;
+  --track: var(--color-track);
+  --blue: var(--color-primary);
+  --blue-700: var(--color-primary-dark);
+  --blue-800: #1a4590;
+  --blue-ink: #1d3f80;
+  --blue-wash: #e9f0fd;
+  --blue-line: #bcd0f3;
+  --you: var(--color-warning);
+  --you-ink: #8a3d05;
+  --you-wash: #fff4e3;
+  --you-line: #f2d3a0;
+  --pp: var(--color-secondary);
+  --pp-ink: #4b22a8;
+  --pp-wash: #f3edff;
+  --pp-line: #d9c8ff;
+  --ok: var(--color-success);
+  --ok-ink: #0f5f2d;
+  --ok-wash: #eaf7ef;
+  --ok-line: #bfe5cc;
+  --bad: #c81e1e;
+  --bad-ink: #9b1c1c;
+  --bad-wash: #fdeeec;
+  --bad-line: #f4c3bd;
+  --stage: #dfe4ef;
+
+  --f-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --r1: 6px;
+  --r2: 12px;
+  --r3: 16px;
+  --r4: 20px;
+  --r5: 24px;
+  --sh-1: 0 1px 2px rgba(11, 21, 54, .05), 0 0 0 1px rgba(11, 21, 54, .02);
+  --sh-2: 0 2px 4px rgba(11, 21, 54, .04), 0 12px 32px -8px rgba(11, 21, 54, .12);
+  --sh-3: 0 40px 80px -20px rgba(6, 13, 36, .45), 0 0 0 1px rgba(11, 21, 54, .06);
+  --sh-btn: 0 10px 24px -10px rgba(37, 89, 177, .6);
+  --ring: 0 0 0 4px rgba(37, 89, 177, .2);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --navy-stage: radial-gradient(900px 420px at 18% 0%, var(--color-bg-glow) 0%, transparent 62%),
+    radial-gradient(700px 360px at 92% 100%, rgba(76, 95, 134, .28) 0%, transparent 70%),
+    linear-gradient(135deg, var(--color-bg), var(--color-bg-deep) 85%);
+
+  /* Legacy aliases (existing views / projects.css) */
+  --font: var(--f-sans);
+  --mono: var(--f-mono);
+  --bg: var(--canvas);
+  --surface: var(--paper);
+  --border: var(--line);
+  --border-strong: var(--line-2);
+  --ink-900: var(--ink);
+  --ink-700: var(--ink-2);
+  --ink-500: var(--ink-3);
+  --ink-300: var(--mute);
+  --navy-900: var(--blue-800);
+  --navy-800: var(--blue-800);
+  --navy-700: var(--color-primary-dark);
+  --navy-600: var(--color-primary);
+  --navy-500: var(--color-primary-light);
+  --navy-050: var(--blue-wash);
+  --green-600: var(--ok);
+  --green-500: var(--ok);
+  --green-100: var(--ok-wash);
+  --red-600: var(--bad-ink);
+  --red-500: var(--bad);
+  --red-100: var(--bad-wash);
+  --radius-sm: var(--r1);
+  --radius-md: var(--r2);
+  --radius-lg: var(--r3);
+  --shadow-card: var(--sh-2);
+}

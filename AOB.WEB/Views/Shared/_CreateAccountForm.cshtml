@@ -1,0 +1,48 @@
+@model AOB.WEB.ViewModels.Admin.CreateAccountViewModel
+@* Shared by the admin "create partner" and "create internal user" pages; posts back to the page that rendered it. *@
+@{
+    var nameLabel = ViewData["NameLabel"] as string ?? "Name";
+    var formTitle = ViewData["FormTitle"] as string ?? "Account details";
+    var submitLabel = ViewData["SubmitLabel"] as string ?? "Create";
+}
+<form method="post" autocomplete="off" class="sheet sheet-form" novalidate>
+    @Html.AntiForgeryToken()
+    <div class="sheet-h">
+        <div class="sheet-ttl">
+            <h2 class="h3">@formTitle</h2>
+            <p class="small muted">All fields are required.</p>
+        </div>
+    </div>
+    <div class="sheet-b">
+        <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+        <div class="field">
+            <label asp-for="Name" class="field-label req">@nameLabel</label>
+            <input asp-for="Name" class="tinput" />
+            <span asp-validation-for="Name"></span>
+        </div>
+        <div class="field">
+            <label asp-for="Email" class="field-label req"></label>
+            <div class="hint">They sign in with this email.</div>
+            <input asp-for="Email" class="tinput" type="email" autocomplete="off" />
+            <span asp-validation-for="Email"></span>
+        </div>
+        <div class="field">
+            <label asp-for="Password" class="field-label req"></label>
+            <input asp-for="Password" class="tinput" autocomplete="new-password" aria-describedby="Password-rules" />
+            <span asp-validation-for="Password"></span>
+            <partial name="_PasswordChecklist" model="@Html.IdFor(m => m.Password)" />
+        </div>
+        <div class="field">
+            <label asp-for="ConfirmPassword" class="field-label req"></label>
+            <input asp-for="ConfirmPassword" class="tinput" autocomplete="new-password" />
+            <span asp-validation-for="ConfirmPassword"></span>
+            <div class="pw-match" data-password-match data-for="@Html.IdFor(m => m.ConfirmPassword)" data-compare="@Html.IdFor(m => m.Password)" aria-live="polite"></div>
+        </div>
+    </div>
+    <div class="sheet-f">
+        <a asp-action="Index" class="btn btn-quiet">Cancel</a>
+        <span class="spacer"></span>
+        <button type="submit" class="btn btn-primary">@submitLabel</button>
+    </div>
+</form>

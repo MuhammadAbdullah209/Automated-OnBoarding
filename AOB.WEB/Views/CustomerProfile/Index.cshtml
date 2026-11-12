@@ -1,0 +1,29 @@
+@model AOB.WEB.ViewModels.Customers.CustomerProfileOverviewViewModel
+@using AOB.BAL.Common.Helpers
+@{
+    ViewData["Title"] = "Organisation";
+    ViewData["FullBleed"] = true;
+    var company = string.IsNullOrWhiteSpace(Model.Profile.CompanyName) ? "Your organisation" : Model.Profile.CompanyName!;
+    ViewData["OrgBandCompany"] = company;
+    ViewData["OrgTab"] = "profile";
+    var okN = CustomerProfileCompletionRules.RequiredProfileSectionsComplete(Model.Profile);
+    ViewData["OrgSectionsComplete"] = okN;
+    ViewData["OrgDocumentsUploaded"] = Model.DocumentsUploadedCount;
+    ViewData["OrgDocumentsTotal"] = Model.Documents.Count;
+    ViewData["OrgDocCount"] = $"{Model.DocumentsUploadedCount}/{Model.Documents.Count}";
+    ViewData["OrgProfileIncomplete"] = okN < 4;
+}
+
+<partial name="_OrganisationBand" />
+<div class="wrap org-profile-wrap">
+    <partial name="_CustomerProfileOverview" model="Model" />
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            if (window.aobOrgProfileAttachAllForms) window.aobOrgProfileAttachAllForms();
+        })();
+    </script>
+}

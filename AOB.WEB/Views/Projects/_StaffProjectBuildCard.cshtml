@@ -1,0 +1,32 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Enums
+@if (Model.BuildType is { } buildType)
+{
+    <section class="sheet staff-aside-card staff-overview-sheet">
+        <div class="sheet-h">
+            <div class="sheet-ttl">
+                <h2 class="h3">Build type</h2>
+                @if (buildType == BuildType.Custom)
+                {
+                    <p class="small muted">This build needs custom work:</p>
+                }
+            </div>
+            <span class="tag @(buildType == BuildType.Standard ? "ok" : "pp")">@(buildType == BuildType.Standard ? "Standard" : "Custom")</span>
+        </div>
+        <div class="sheet-b">
+            @if (buildType == BuildType.Standard)
+            {
+                <p class="customer-muted-line mb-0">Every choice is supported as standard, so the project can go straight to provisioning after approval.</p>
+            }
+            else
+            {
+                <ul class="staff-build-reasons" style="min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word">
+                    @foreach (var reason in Model.BuildReasons)
+                    {
+                        <li style="overflow-wrap:anywhere;word-break:break-word">@reason</li>
+                    }
+                </ul>
+            }
+        </div>
+    </section>
+}

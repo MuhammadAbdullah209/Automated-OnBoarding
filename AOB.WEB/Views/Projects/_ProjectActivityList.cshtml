@@ -1,0 +1,47 @@
+@using AOB.BAL.Common.Helpers
+@using AOB.BAL.DTOs.Activity
+@{
+    var activityLog = ViewData["ProjectActivity"] as IReadOnlyList<ActivityLogDto>
+        ?? Array.Empty<ActivityLogDto>();
+    var listId = ViewData["ActivityListId"] as string ?? "prov-events";
+    var showProvisioningPlaceholder = ViewData["ActivityProvisioningPlaceholder"] as bool? == true;
+    // The Status page lists only the latest few events; the Activity page sets ActivityShowAll to list them all.
+    var shownEvents = ViewData["ActivityShowAll"] is true
+        ? activityLog
+        : activityLog.Take(ProjectOnboardingPresentation.ActivityPreviewCount).ToList();
+    string? lastActivityDay = null;
+}
+
+<ul class="prov-activity" id="@listId" data-prov-events>
+    @if (activityLog.Count == 0 && showProvisioningPlaceholder)
+    {
+        <li class="prov-events-empty small muted" data-prov-events-empty>Events appear here as each step finishes.</li>
+    }
+    else if (activityLog.Count == 0)
+    {
+        <li class="prov-events-empty small muted">No activity yet.</li>
+    }
+    else
+    {
+        @foreach (var a in shownEvents)
+        {
+            var day = a.CreatedAt.ToLocalTime().ToString("d MMM yyyy").ToUpperInvariant();
+            if (lastActivityDay != day)
+            {
+                lastActivityDay = day;
+                <li class="prov-activity-day">@day</li>
+            }
+            <li class="prov-activity-item">
+                <span class="prov-activity-avatar" aria-hidden="true">S</span>
+                <div class="prov-activity-body">
+                    <span class="prov-activity-time">@a.CreatedAt.ToLocalTime().ToString("HH:mm")</span>
+                    <div class="prov-activity-title">@a.Action</div>
+                    @if (!string.IsNullOrWhiteSpace(a.Reason))
+                    {
+                        <div class="prov-activity-detail">@a.Reason</div>
+                    }
+                </div>
+            </li>
+        }
+    }
+</ul>

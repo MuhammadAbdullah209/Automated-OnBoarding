@@ -1,0 +1,35 @@
+@*
+    TempData messages as toasts (prototype .toast): they float at the top of the page instead of pushing it down.
+    site.js moves them into one stack, closes success and info after a few seconds, and keeps errors until dismissed.
+    Rendered once per request, however many views include it.
+*@
+@{
+    if (Context.Items.ContainsKey("aob:flash-rendered"))
+    {
+        return;
+    }
+    Context.Items["aob:flash-rendered"] = true;
+
+    var toasts = new List<(string Kind, string? Title, string Text)>();
+    if (TempData["Success"] is string success)
+    {
+        toasts.Add(("ok", TempData["SuccessTitle"] as string, success));
+    }
+    if (TempData["Error"] is string error)
+    {
+        toasts.Add(("bad", TempData["ErrorTitle"] as string ?? "Something went wrong", error));
+    }
+    if (TempData["Info"] is string info)
+    {
+        toasts.Add(("info", null, info));
+    }
+}
+@if (toasts.Count > 0)
+{
+    <div class="toasts" data-toast-host aria-live="polite">
+        @foreach (var t in toasts)
+        {
+            <partial name="_Toast" model="t" />
+        }
+    </div>
+}

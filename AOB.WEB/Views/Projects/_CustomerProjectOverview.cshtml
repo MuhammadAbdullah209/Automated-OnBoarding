@@ -1,0 +1,116 @@
+@model AOB.WEB.ViewModels.Projects.ProjectDetailsViewModel
+@using AOB.BAL.Common.Enums
+@using AOB.WEB.ViewModels.Projects
+@{
+    var project = Model.Details.Project;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    ViewData["DocSectionNo"] = "00";
+    ViewData["DocTitle"] = "Project overview";
+    ViewData["DocLede"] = "What’s answered and what’s left. Work through the sections in order: each one shapes the questions in the next.";
+    ViewData["DocRequiredNote"] = false;
+
+    var nextSetupAction = !project.HasDiscovery ? "Discovery"
+        : !project.HasTechnicalEnvironment ? "TechnicalEnvironment"
+        : !project.HasPaymentConfiguration ? "PaymentConfiguration"
+        : !project.HasGatewayConfiguration ? "GatewayConfiguration"
+        : "Readiness";
+    var nextSetupLabel = nextSetupAction switch
+    {
+        "Discovery" => "Discovery",
+        "TechnicalEnvironment" => "Technical environment",
+        "PaymentConfiguration" => "Payment configuration",
+        "GatewayConfiguration" => "Adaptive configuration",
+        _ => "Readiness and submit"
+    };
+}
+
+<div class="doc rise project-flow-form doc--flow-actions project-flow-form--customer">
+    <partial name="_ProjectDocHeader" />
+    <div class="ctxwrap">
+        <div class="note ctxnote">
+            <span class="ni" aria-hidden="true">
+                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            </span>
+            <p>You can delete this project until provisioning is Complete you give a reason first then a short countdown Starts and you can restore the project until it ends <p/>
+           
+        </div>
+    </div>
+    <div class="doc-paper project-flow-primary customer-overview-paper">
+        @if (project.UsersCsvRequestedAt is not null && project.Status == ProjectStatus.AccountCreation)
+        {
+            <partial name="_ProjectActionBanner" model="@(new ProjectActionBannerViewModel {
+                Title = "Upload your users list",
+                Description = "Add a CSV with each person's name, email, and role (admin or user). We'll use it to create their PCI Pal accounts.",
+                ButtonText = "Go to users",
+                AnchorHref = "#users-card"
+            })" />
+        }
+        @if (project.BuildType == BuildType.Custom && project.InformationRequestStatus == InformationRequestStatus.Requested)
+        {
+            var infoRoute = new Dictionary<string, string> { ["id"] = project.Id.ToString() };
+            if (actingCustomerId is Guid cid) infoRoute["customerId"] = cid.ToString();
+            <partial name="_ProjectActionBanner" model="@(new ProjectActionBannerViewModel {
+                Title = "PCI Pal needs more information from you",
+                Description = "Send the requested details so we can continue setting up your project.",
+                ButtonText = "Provide information",
+                Action = "ProvideInformation",
+                RouteValues = infoRoute
+            })" />
+        }
+        else if (project.BuildType == BuildType.Custom && project.InformationRequestStatus is not null)
+        {
+            @* Nothing waits on the customer, but they can still see each request's status and their responses. *@
+            <p class="small muted customer-doc-requests-link">
+                <a class="link" asp-action="ProvideInformation" asp-route-customerId="@actingCustomerId" asp-route-id="@project.Id">View document requests</a>
+                and their status.
+            </p>
+        }
+
+        <section class="sheet customer-setup-sheet" aria-labelledby="customer-setup-h">
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3" id="customer-setup-h">Project setup</h2>
+                    <p class="small muted">Complete each section in order. Later steps depend on earlier answers.</p>
+                </div>
+            </div>
+            <div class="sheet-b customer-setup-sheet-b">
+                <partial name="_ProjectOverviewSections" model="project" />
+            </div>
+        </section>
+
+        @* Account users are a separate step after setup; "Go to users" above links here. *@
+        <partial name="_UsersCard" model="project" />
+
+        <partial name="_DeleteProjectCard" model="project" />
+    </div>
+    @if (!project.IsSubmitted)
+    {
+        <div class="actionbar actionbar--dock">
+            <span class="spacer"></span>
+            @if (actingCustomerId is Guid customerId)
+            {
+                <a asp-controller="Projects" asp-action="@nextSetupAction" asp-route-customerId="@customerId" asp-route-id="@project.Id" class="btn btn-primary">
+                    Continue: @nextSetupLabel
+                    <svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                </a>
+            }
+            else
+            {
+                <a asp-action="@nextSetupAction" asp-route-id="@project.Id" class="btn btn-primary">
+                    Continue: @nextSetupLabel
+                    <svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+<script src="~/js/project-ajax.js" asp-append-version="true"></script>
+<script>
+    sessionStorage.removeItem('aob-back-to-projects');
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        sessionStorage.setItem('aob-back-to-projects', '1');
+        location.reload();
+    });
+</script>

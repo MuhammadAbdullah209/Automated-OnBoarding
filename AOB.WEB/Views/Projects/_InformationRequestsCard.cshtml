@@ -1,0 +1,282 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@using AOB.WEB.Helpers
+@{
+    var requests = ViewData["InformationRequests"] as IReadOnlyList<InformationRequestDto> ?? Array.Empty<InformationRequestDto>();
+    var options = ViewData["InformationOptions"] as IReadOnlyList<InformationRequestOptionDto> ?? Array.Empty<InformationRequestOptionDto>();
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var canReview = User.IsInRole(AppRoles.InternalUser);
+    var isStaff = canReview || User.IsInRole(AppRoles.SuperAdmin);
+    var isCustom = Model.BuildType == BuildType.Custom;
+    var inApproval = Model.Status == ProjectStatus.Approval;
+
+    // Every requested document on its own, newest request first.
+    var items = requests.SelectMany(r => r.Items).ToList();
+    var hasOpen = requests.Any(r => r.Status != InformationRequestStatus.Approved);
+    // Documents can be requested until the project is approved for provisioning (the server enforces this too).
+    var canRequest = canReview && isCustom && inApproval && options.Count > 0;
+    var showSection = isStaff && isCustom && (requests.Count > 0 || ViewData["StaffOverviewSheets"] is true);
+
+    var pendingReview = items.Count(i => i.AwaitingReview);
+    var openItems = items.Count(i => !i.IsClosed);
+
+    static string RowIconClass(InformationItemStatus status)
+        => status is InformationItemStatus.Approved or InformationItemStatus.Resolved ? "ok"
+            : status == InformationItemStatus.Rejected ? "warn"
+            : "pending";
+}
+
+@if (showSection)
+{
+    <section class="sheet staff-overview-sheet info-requests-sheet" id="information-requests" aria-labelledby="staff-info-requests-h">
+        <div class="sheet-h">
+            <div class="sheet-ttl">
+                <h2 class="h3" id="staff-info-requests-h">Document requests</h2>
+                <p class="small muted">Each document is requested, answered and reviewed on its own.</p>
+            </div>
+            @if (items.Count == 0)
+            {
+                <span class="tag">None yet</span>
+            }
+            else if (pendingReview > 0)
+            {
+                <span class="tag you">@pendingReview to review</span>
+            }
+            else if (openItems > 0)
+            {
+                <span class="tag pp">@openItems open</span>
+            }
+            else
+            {
+                <span class="tag ok">All closed</span>
+            }
+        </div>
+
+        @if (items.Count == 0)
+        {
+            <div class="sheet-b">
+                <p class="customer-muted-line mb-0">No document requests yet. Use <strong>Request documents</strong> below while the project is in approval.</p>
+            </div>
+        }
+        else
+        {
+            <div class="info-request-list">
+                @foreach (var item in items)
+                {
+                    <div class="doc-row info-request-row" data-item data-item-id="@item.Id" id="request-@item.Id.ToString("N")">
+                        <span class="doc-ic @RowIconClass(item.Status)" aria-hidden="true">
+                            @if (item.IsClosed)
+                            {
+                                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5" /></svg>
+                            }
+                            else if (item.Status == InformationItemStatus.Rejected)
+                            {
+                                <span class="mono" style="font-weight:800">!</span>
+                            }
+                            else
+                            {
+                                <span class="mono xsmall" style="font-weight:600">DOC</span>
+                            }
+                        </span>
+                        <div class="doc-body">
+                            <div class="doc-head">
+                                <span class="doc-title">@item.Title</span>
+                                <span class="badge badge-sm @InformationRequestUi.ItemBadge(item.Status)"><span class="bd"></span>@InformationRequestUi.ItemLabel(item.Status)</span>
+                            </div>
+                            <p class="doc-meta">
+                                Requested @item.CreatedAt.ToLocalTime().ToString("d MMM yyyy, HH:mm")@(string.IsNullOrWhiteSpace(item.RequestedByName) ? "" : $" by {item.RequestedByName}")
+                            </p>
+                            @if (!string.IsNullOrWhiteSpace(item.Instructions))
+                            {
+                                <div class="info-item-line"><span class="info-item-k">Your note</span> @item.Instructions</div>
+                            }
+
+                            @if (item.SubmittedAt is not null)
+                            {
+                                <div class="info-item-response">
+                                    <div class="info-item-k">
+                                        Customer’s @(item.Status == InformationItemStatus.Resubmitted || item.History.Count > 0 ? "latest response" : "response")
+                                        · @item.SubmittedAt.Value.ToLocalTime().ToString("d MMM yyyy, HH:mm")
+                                    </div>
+                                    @if (item.DocumentId is not null)
+                                    {
+                                        <div class="info-item-line"><span class="mono">@(item.DocumentName ?? "Document")</span></div>
+                                    }
+                                    else
+                                    {
+                                        <div class="info-item-line muted">No document attached: note only.</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.CustomerNote))
+                                    {
+                                        <div class="info-item-line" style="white-space:pre-line">@item.CustomerNote</div>
+                                    }
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(item.ReviewNote))
+                            {
+                                <div class="info-item-note @(item.Status == InformationItemStatus.Resolved ? "is-neutral" : "")">
+                                    @(item.Status == InformationItemStatus.Rejected ? "Rejection reason" : "Resolution note"): @item.ReviewNote
+                                </div>
+                            }
+
+                            @if (item.History.Count > 0)
+                            {
+                                <partial name="_InformationResponseHistory" model="@((Model.Id, item.History))" />
+                            }
+                        </div>
+                        @if (item.DocumentId is Guid || (canReview && item.AwaitingReview))
+                        {
+                            <div class="row dact doc-panel-actions info-item-actions">
+                                @if (item.DocumentId is Guid docId)
+                                {
+                                    <a asp-action="DownloadInformationDocument" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" asp-route-documentId="@docId" class="btn btn-sm btn-quiet btn-icon-only info-item-view has-tooltip" aria-label="Download document" data-tip="Download to view this document">
+                                        <partial name="_DownloadIconLink" />
+                                    </a>
+                                }
+                                @if (canReview && item.AwaitingReview)
+                                {
+                                    <partial name="_InformationReviewActions" model="@((Model.Id, item.Id, item.Title, item.CanApprove))" />
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (canReview && isCustom && inApproval)
+        {
+            <div class="sheet-f staff-info-actions">
+                <div class="staff-info-actions-inner">
+                    @if (hasOpen)
+                    {
+                        <p class="small muted staff-info-gate mb-0">Approve or resolve every document request before this project can move to provisioning.</p>
+                    }
+                    @if (canReview && options.Count == 0 && items.Count > 0)
+                    {
+                        <p class="small muted staff-info-gate mb-0">Every document on the checklist has been requested.</p>
+                    }
+                    <div class="staff-info-actions-btns">
+                        @if (canRequest)
+                        {
+                            <button type="button" class="btn btn-secondary-accent" data-info-open>Request documents</button>
+                        }
+                        @if (!hasOpen)
+                        {
+                            <form asp-action="AdvanceWorkflow" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" class="staff-inline-form" data-ajax="advance">
+                                <button type="submit" class="btn btn-primary">Approve and start provisioning</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </section>
+}
+
+@if (canRequest)
+{
+    <dialog class="info-dialog" data-info-dialog aria-labelledby="info-dialog-title">
+        <form asp-action="RequestInformation" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" data-info-request-form>
+            <h3 id="info-dialog-title">Request documents</h3>
+            <p class="info-dialog-sub">Each document you tick is sent as its own request, with its own optional note.</p>
+
+            <div class="info-options">
+                @foreach (var option in options)
+                {
+                    var noteId = $"info-note-{option.Code}";
+                    <div class="info-option-wrap" data-info-option>
+                        <label class="info-option">
+                            <input type="checkbox" name="codes" value="@option.Code" data-info-option-check />
+                            <span>
+                                <span class="info-option-title">@option.Title</span>
+                                <span class="info-option-text">@option.Description</span>
+                                @if (!string.IsNullOrWhiteSpace(option.InternalReason))
+                                {
+                                    <span class="info-option-why">Why: @option.InternalReason</span>
+                                }
+                            </span>
+                        </label>
+                        <div class="info-option-note" data-info-option-note hidden>
+                            <label class="sr-only" for="@noteId">Note for @option.Title</label>
+                            <textarea id="@noteId" name="notes[@option.Code]" class="tinput" rows="2" maxlength="2000" disabled
+                                      placeholder="@(option.Code == "OTHER" ? "Required: say what you need." : "Optional note for the customer, e.g. a signed copy of the agreement.")"></textarea>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="info-dialog-actions">
+                <button type="button" class="btn btn-secondary" data-info-close>Cancel</button>
+                <button type="submit" class="btn btn-primary" data-info-send disabled>
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span data-info-send-label>Send requests</span>
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var dialog = document.querySelector('[data-info-dialog]');
+            if (!dialog) return;
+            var form = dialog.querySelector('[data-info-request-form]');
+            var send = form.querySelector('[data-info-send]');
+            var sendLabel = send.querySelector('[data-info-send-label]');
+            var cancel = dialog.querySelector('[data-info-close]');
+            var sending = false;
+
+            // Send is only clickable once at least one document is ticked.
+            function syncSend() {
+                if (sending) return;
+                send.disabled = !form.querySelector('[data-info-option-check]:checked');
+            }
+
+            function setSending(on) {
+                sending = on;
+                send.classList.toggle('is-loading', on);
+                send.setAttribute('aria-busy', on ? 'true' : 'false');
+                sendLabel.textContent = on ? 'Sending…' : 'Send requests';
+                cancel.disabled = on;
+                if (on) send.disabled = true; else syncSend();
+            }
+
+            document.addEventListener('click', function (e) {
+                if (e.target.closest('[data-info-open]')) dialog.showModal();
+            });
+            cancel.addEventListener('click', function () { if (!sending) dialog.close(); });
+            dialog.addEventListener('click', function (e) { if (e.target === dialog && !sending) dialog.close(); });
+            // Esc must not close the dialog while the request is in flight.
+            dialog.addEventListener('cancel', function (e) { if (sending) e.preventDefault(); });
+
+            // One request at a time: lock the button as soon as a valid form is sent, so a double click cannot
+            // post the same documents twice.
+            form.addEventListener('submit', function (e) {
+                if (sending) { e.preventDefault(); return; }
+                if (!form.querySelector('[data-info-option-check]:checked')) { e.preventDefault(); return; }
+                setSending(true);
+            });
+
+            // Coming back to the page from history must not leave the button stuck on "Sending…".
+            window.addEventListener('pageshow', function (e) { if (e.persisted) setSending(false); });
+
+            // A note box opens under each ticked document; unticked ones send nothing.
+            dialog.querySelectorAll('[data-info-option]').forEach(function (row) {
+                var check = row.querySelector('[data-info-option-check]');
+                var note = row.querySelector('[data-info-option-note]');
+                var text = note.querySelector('textarea');
+                check.addEventListener('change', function () {
+                    note.hidden = !check.checked;
+                    text.disabled = !check.checked;
+                    text.required = check.checked && check.value === 'OTHER';
+                    if (check.checked) text.focus();
+                    syncSend();
+                });
+            });
+            syncSend();
+        })();
+    </script>
+}

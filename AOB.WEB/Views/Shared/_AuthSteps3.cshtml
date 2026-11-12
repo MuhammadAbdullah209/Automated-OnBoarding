@@ -1,0 +1,14 @@
+@{
+    var step = (int)(ViewData["AuthResetStep"] ?? 0);
+    var labels = ViewData["AuthResetLabels"] as string[] ?? new[] { "Email", "Code", "New password" };
+}
+<div class="steps3" aria-label="Step @(step + 1) of @labels.Length">
+    @for (var i = 0; i < labels.Length; i++)
+    {
+        var state = i < step ? "done" : (i == step ? "cur" : "");
+        <div class="s @state">
+            <i aria-hidden="true"></i>
+            @(i < step ? "✓ " : "")@labels[i]
+        </div>
+    }
+</div>

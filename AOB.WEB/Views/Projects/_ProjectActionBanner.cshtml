@@ -1,0 +1,20 @@
+@model AOB.WEB.ViewModels.Projects.ProjectActionBannerViewModel
+<div class="note you flow-action-banner" role="alert">
+    <span class="ni readiness-status-icon readiness-status-icon--warn" aria-hidden="true">
+        <svg class="i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4M12 17h.01"/></svg>
+    </span>
+    <div class="flow-action-banner__body">
+        <div class="nt">@Model.Title</div>
+        <div class="nd">@Model.Description</div>
+        <div class="flow-action-banner__actions">
+            @if (!string.IsNullOrEmpty(Model.AnchorHref))
+            {
+                <a href="@Model.AnchorHref" class="btn btn-sm btn-cta">@Model.ButtonText</a>
+            }
+            else if (!string.IsNullOrEmpty(Model.Action))
+            {
+                <a asp-action="@Model.Action" asp-all-route-data="@Model.RouteValues" class="btn btn-sm btn-cta">@Model.ButtonText</a>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,54 @@
+@model AOB.BAL.DTOs.Documents.DocumentTypeDto
+
+@* Shared by the Create and Edit pages; the form posts back to whichever action rendered it. *@
+@{
+    var submitLabel = ViewData["SubmitLabel"] as string ?? "Save";
+}
+<form method="post" autocomplete="off" class="sheet sheet-form" novalidate>
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden" />
+    <div class="sheet-h">
+        <div class="sheet-ttl">
+            <h2 class="h3">Document details</h2>
+            <p class="small muted">Customers see the name and description on their Documents list.</p>
+        </div>
+    </div>
+    <div class="sheet-b">
+        <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+        <div class="field">
+            <label asp-for="Name" class="field-label req"></label>
+            <input asp-for="Name" class="tinput" placeholder="e.g. Certificate of Incorporation" />
+            <span asp-validation-for="Name"></span>
+        </div>
+        <div class="field">
+            <label asp-for="Description" class="field-label">@Html.DisplayNameFor(m => m.Description) <span class="opt">Optional</span></label>
+            <div class="hint">One line on what the document is, so the customer uploads the right file.</div>
+            <textarea asp-for="Description" class="tinput" rows="3"></textarea>
+            <span asp-validation-for="Description"></span>
+        </div>
+        <div class="field" style="max-width:200px">
+            <label asp-for="SortOrder" class="field-label"></label>
+            <div class="hint">Lower numbers are listed first.</div>
+            <input asp-for="SortOrder" class="tinput" type="number" />
+            <span asp-validation-for="SortOrder"></span>
+        </div>
+        <div class="stack-sm">
+            <label class="check" for="@Html.IdFor(m => m.IsRequired)">
+                <input asp-for="IsRequired" type="checkbox" />
+                <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5" /></svg></span>
+                <span class="check-text">@Html.DisplayNameFor(m => m.IsRequired)<span class="hint">Customers must upload this before their profile is complete.</span></span>
+            </label>
+            <label class="check" for="@Html.IdFor(m => m.IsActive)">
+                <input asp-for="IsActive" type="checkbox" />
+                <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5" /></svg></span>
+                <span class="check-text">@Html.DisplayNameFor(m => m.IsActive)<span class="hint">Inactive types are hidden from customers. Files already uploaded are kept.</span></span>
+            </label>
+        </div>
+    </div>
+    <div class="sheet-f">
+        <a asp-action="Index" class="btn btn-quiet">Cancel</a>
+        <span class="spacer"></span>
+        <button type="submit" class="btn btn-primary">@submitLabel</button>
+    </div>
+</form>

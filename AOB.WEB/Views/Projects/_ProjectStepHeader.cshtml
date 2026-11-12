@@ -1,0 +1,156 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+
+@using AOB.BAL.Common.Constants
+
+@using AOB.BAL.Common.Enums
+
+@{
+
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+
+    var activeAction = ViewContext.RouteData.Values["action"]?.ToString();
+
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+
+
+
+    var statusLabel = Model.IsSubmitted
+
+        ? ProjectOptions.ProjectStatusLabels[Model.Status]
+
+        : Model.IsReadyToSubmit && Model.Status == ProjectStatus.InProgress
+
+            ? "Ready to submit"
+
+            : ProjectOptions.ProjectStatusLabels[Model.Status];
+
+
+
+    var flowSubtitle = ViewData["FlowSubtitle"] as string
+
+                       ?? ProjectOptions.ProjectStatusLabels[Model.Status];
+
+    var provisioned = Model.Status is ProjectStatus.AccountCreation or ProjectStatus.Completed
+        || (Model.Status == ProjectStatus.Provisioning && ViewData["ProvisioningStepsComplete"] is true);
+}
+
+
+
+<div class="project-case-head">
+
+    <div class="project-case-back">
+
+        @if (actingCustomerId is Guid customerId)
+
+        {
+
+            <a asp-controller="Projects" asp-action="Index" asp-route-customerId="@customerId" class="project-flow-back">&larr; All projects</a>
+
+        }
+
+        else
+
+        {
+
+            <a asp-action="Index" class="project-flow-back">&larr; All projects</a>
+
+        }
+
+    </div>
+
+
+
+    <div class="case-header card">
+
+        <div class="case-header-top">
+
+            <div class="case-header-main">
+
+                <div class="case-header-title-row">
+
+                    <h1 class="case-title">@Model.Name</h1>
+
+                    <span class="customer-status-badge customer-status-badge--@(Model.IsSubmitted ? "done" : "active")">
+
+                        <span class="bd"></span>@statusLabel
+
+                    </span>
+
+                </div>
+
+                <p class="case-meta">@flowSubtitle</p>
+
+            </div>
+
+            @if (activeAction == "Details" && (readOnlyStaff || Model.DeletionScheduledFor is null || Model.IsSubmitted))
+
+            {
+
+                <div class="case-header-actions">
+
+                    @* The Setup Documentation Pack is generated once the project is completed and its provisioning has passed. *@
+                    @if (Model.Status == ProjectStatus.Completed && !Model.RequiresAccount && ViewData["ProvisioningStepsComplete"] is true)
+                    {
+                        <a asp-action="SetupDocument" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Generate SDP document</a>
+                    }
+
+                    @* A project cannot be deleted once its provisioning is complete. *@
+                    @if (!readOnlyStaff && Model.DeletionScheduledFor is null && !provisioned)
+
+                    {
+
+                        <form asp-action="Delete" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" class="d-inline">
+
+                            <button type="submit" class="btn btn-ghost btn-sm">Delete project</button>
+
+                        </form>
+
+                    }
+
+                    @* Flow launch is offered once provisioning is complete (status Completed). *@
+                    @if (!readOnlyStaff && Model.Status == ProjectStatus.Completed && Model.BuildType != BuildType.Custom)
+                    {
+                        <form asp-action="FlowLaunch" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-secondary btn-sm">Flow launch</button>
+                        </form>
+                    }
+
+                </div>
+
+            }
+
+        </div>
+
+        @if (activeAction == "Summary" && !readOnlyStaff && Model.Status == ProjectStatus.Completed && Model.BuildType != BuildType.Custom)
+        {
+            <div class="case-header-actions">
+                <form asp-action="FlowLaunch" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-secondary btn-sm">Flow launch</button>
+                </form>
+            </div>
+        }
+        @if (activeAction == "Details")
+
+        {
+
+            <partial name="_ProjectLifecycleStepper" model="Model" />
+
+        }
+
+        else
+
+        {
+
+            <div class="case-header-step-nav">
+
+                <partial name="_ProjectStepNav" model="Model" />
+
+            </div>
+
+        }
+
+    </div>
+
+</div>
+
+

@@ -1,0 +1,450 @@
+@model AOB.WEB.ViewModels.Projects.ProvisioningViewModel
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Activity
+@using System.Security.Claims
+@{
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = Model.ShowLiveStaging ? "Live in staging"
+        : Model.ShowAccountCreationGate ? "Account creation"
+        : Model.ShowPostProvisionLayout ? "Setup complete"
+        : "Provisioning";
+    ViewData["FlowSubtitle"] = Model.ShowLiveStaging ? "Live · test your flow"
+        : Model.ShowAccountCreationGate ? "Account creation · users list needed"
+        : Model.ShowPostProvisionLayout ? "Tenant ready"
+        : "Provisioning · setting up your tenant";
+
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var activityLog = ViewData["ProjectActivity"] as IReadOnlyList<ActivityLogDto>
+        ?? Array.Empty<ActivityLogDto>();
+    // The customer's primary contact; a customer without one in their profile sees their own sign-in instead. Staff never see their own.
+    var primaryContact = Model.PrimaryContact is { Length: > 0 } pc && pc != "—"
+        ? pc
+        : Model.ReadOnly
+            ? "—"
+            : User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "—";
+
+    var steps = new[]
+    {
+        ("Tenant created", "Your PCI Pal tenant is created."),
+        ("Features enabled", "The services you selected are switched on for your tenant."),
+        ("Configuration applied", "Your payment and integration settings are applied."),
+        ("Payment flow created", "The payment workflow for your journey is built."),
+        ("Payment flow published", "The workflow is published and ready to use in staging.")
+    };
+
+    var staticDone = Model.ShowPostProvisionLayout ? 5 : (Model.Animate ? 0 : 2);
+    var configStatus = Model.ShowPostProvisionLayout ? "Complete" : Model.IsComplete ? "Complete" : "Applying";
+    var (integrationTitle, integrationDesc) = Model.CrmPlatform switch
+    {
+        CrmPlatform.Dynamics => ("Add the payment page to Microsoft Dynamics", "Use the payment URL in the pack to embed or link the page in Dynamics."),
+        CrmPlatform.Salesforce => ("Add the payment page to Salesforce", "Use the payment URL in the pack to embed or link the page in Salesforce."),
+        _ => ("Add the payment page to your CRM or integration", "Use the payment URL in the Setup Document Pack in your application.")
+    };
+    var sdpAvailable = Model.PostProvisionShowSetupPack;
+    var packGenerated = Model.SubmittedAt;
+}
+
+@using AOB.BAL.Common.Helpers
+@{
+}
+
+@* Prototype project dossier (Status tab): a "now" panel, then the pack and the steps, with facts and activity alongside.
+   The provisioning script below drives everything marked data-prov-*. *@
+<div class="prov-hub rise" data-prov
+     data-animate="@(Model.Animate ? "true" : "false")"
+     data-live="@(Model.PostProvisionLiveStaging ? "true" : "false")"
+     data-after-account-gate="@(Model.PostProvisionAccountCreationGate ? "true" : "false")"
+     data-step-count="@steps.Length">
+
+    <div class="dz-grid prov-dz @(Model.ShowLiveStaging ? "prov-hub-layout--live" : "")">
+        <div class="dz-main">
+            @* ---------- While provisioning runs ---------- *@
+            <div class="prov-stack" data-prov-progress @(Model.ShowPostProvisionLayout ? "hidden" : null)>
+                <section class="sheet now sys" aria-live="polite">
+                    <span class="nb" aria-hidden="true">
+                        <svg class="i lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="3" width="20" height="6" rx="1" /><rect x="2" y="11" width="20" height="10" rx="1" /><path d="M6 7h.01M6 15h.01" /></svg>
+                    </span>
+                    <div>
+                        <span class="court sys"><span class="who">System</span>Setting up @(Model.ReadOnly ? "the customer’s" : "your") tenant</span>
+                        <h2 class="h2" style="margin-top:10px">Setting up the PCI Pal tenant</h2>
+                        <p class="lede" style="margin-top:6px">Provisioning runs automatically and usually takes a few minutes. @(Model.ReadOnly ? "The customer is emailed when it’s done." : "We’ll email you when it’s done.")</p>
+                    </div>
+                </section>
+
+                <section class="sheet" aria-labelledby="prov-steps-h">
+                    <div class="sheet-h">
+                        <div class="sheet-ttl">
+                            <h2 class="h3" id="prov-steps-h">Setup steps</h2>
+                            <p class="small muted">Tenant <span class="mono">@Model.TenantId</span> · @Model.Environment.ToLowerInvariant() · runs automatically, you can leave this page</p>
+                        </div>
+                        <span class="tag num" data-prov-count>@staticDone of @steps.Length</span>
+                    </div>
+                    <div class="sheet-b">
+                        <ol class="steps" data-prov-steps>
+                            @for (var i = 0; i < steps.Length; i++)
+                            {
+                                var state = Model.ShowPostProvisionLayout || i < staticDone ? "done"
+                                    : i == staticDone && !Model.Animate ? "running"
+                                    : "waiting";
+                                <li class="prov-step is-@state" data-prov-step data-title="@steps[i].Item1">
+                                    <span class="sn" aria-hidden="true">
+                                        <span class="sn-num">@(i + 1)</span>
+                                        <svg class="sn-check i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6 9 17l-5-5" /></svg>
+                                        <span class="sn-fail">!</span>
+                                        <span class="ring sn-spin"></span>
+                                    </span>
+                                    <div>
+                                        <div class="st">@steps[i].Item1</div>
+                                        <div class="sd">@steps[i].Item2</div>
+                                        <div class="err" data-prov-error hidden style="margin-top:4px">This step didn’t complete. Select Retry to run it again.</div>
+                                    </div>
+                                    <span class="tag" data-prov-badge>@(state switch { "done" => "Done", "running" => "Running", _ => "Waiting" })</span>
+                                </li>
+                            }
+                        </ol>
+                    </div>
+                    @if (!Model.ReadOnly && Model.Animate)
+                    {
+                        <div class="sheet-f">
+                            <span class="small muted">Earlier steps are kept if one fails. Retrying runs only that step onwards.</span>
+                            <span class="spacer"></span>
+                            <button type="button" class="btn btn-text btn-sm" data-prov-demo>Simulate failure (demo)</button>
+                            <button type="button" class="btn btn-primary btn-sm" data-prov-retry hidden>Retry step</button>
+                        </div>
+                    }
+                </section>
+            </div>
+
+            @* ---------- After provisioning (live staging or account creation) ---------- *@
+            <div class="prov-stack" data-prov-live @(Model.ShowPostProvisionLayout ? null : "hidden")>
+                @if (Model.PostProvisionLiveStaging)
+                {
+                    <section class="sheet now ok">
+                        <span class="nb" aria-hidden="true">
+                            <svg class="i lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>
+                        </span>
+                        <div>
+                            <span class="court ok"><span class="who">Live</span>Live in staging · test @(Model.ReadOnly ? "the customer’s" : "your") flow</span>
+                            <h2 class="h2" style="margin-top:10px">Live in staging</h2>
+                            <p class="lede" style="margin-top:6px">
+                                @(Model.ReadOnly ? "The customer’s tenant is ready." : "Your tenant is ready.")
+                                @(Model.RequiresAccount
+                                    ? " Run a test payment with the hosted page."
+                                    : " Download the Setup Document Pack and run a test payment.")
+                            </p>
+                        </div>
+                    </section>
+                }
+                else if (Model.PostProvisionAccountCreationGate)
+                {
+                    <section class="sheet" aria-labelledby="account-creation-h">
+                        <div class="sheet-b now sys">
+                            <span class="nb" aria-hidden="true">
+                                <svg class="i lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </span>
+                            <div>
+                                <span class="court you"><span class="who">@(Model.ReadOnly ? "Customer" : "You")</span>Account creation · upload your users list</span>
+                                <h2 class="h2" id="account-creation-h" style="margin-top:10px">Upload your users list</h2>
+                                <p class="lede" style="margin-top:6px">@(Model.ReadOnly ? "The customer needs to add a CSV with each person’s name, email, and role (admin or user). PCI Pal uses it to create their accounts." : "Add a CSV with each person’s name, email, and role (admin or user). We’ll use it to create PCI Pal accounts.")</p>
+                            </div>
+                        </div>
+                        <div class="sheet-f">
+                            <span class="small muted">Tenant <span class="mono">@Model.TenantId</span> · @Model.Environment.ToLowerInvariant()</span>
+                            <span class="spacer"></span>
+                            <a asp-controller="Projects" asp-action="Details" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.ProjectId" asp-fragment="users-card" class="btn btn-primary">
+                                @(Model.ReadOnly ? "View users request" : "Go to users")
+                            </a>
+                        </div>
+                    </section>
+                }
+
+                @if (Model.PostProvisionShowSetupPack)
+                {
+                    <section class="sheet" aria-labelledby="sdp-h">
+                        <div class="sheet-b sdp">
+                            <span class="file" aria-hidden="true">PDF</span>
+                            <div style="min-width:0">
+                                <div class="row wrap" style="gap:8px">
+                                    <h2 class="h3" id="sdp-h">Setup Document Pack</h2>
+                                    <span class="tag @(sdpAvailable ? "ok" : "")">@(sdpAvailable ? "Available" : "Preparing")</span>
+                                </div>
+                                <p class="small muted" style="margin-top:2px">Integration settings for tenant <span class="mono">@Model.TenantId</span> · @Model.Environment.ToLowerInvariant() · generated @packGenerated.ToString("d MMM yyyy")</p>
+                            </div>
+                            @if (sdpAvailable)
+                            {
+                                <a asp-controller="Projects" asp-action="SetupDocument" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.ProjectId" target="_blank" rel="noopener" class="btn btn-quiet">
+                                    <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                                    Download
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="btn btn-quiet is-disabled" aria-disabled="true">Download</span>
+                            }
+                        </div>
+                        <div class="sheet-b" style="border-top:1px solid var(--line)">
+                            <div class="eyebrow" style="margin-bottom:6px">Configuration guide</div>
+                            <ol class="guide">
+                                <li><span class="gn">1</span><div><div class="strong">Allow PCI Pal through your network</div><div class="small muted">Add the staging IP addresses from Technical environment to your allow-list.</div></div></li>
+                                <li><span class="gn">2</span><div><div class="strong">@integrationTitle</div><div class="small muted">@integrationDesc</div></div></li>
+                                <li><span class="gn">3</span><div><div class="strong">Handle returned data</div><div class="small muted">Listen for polling callbacks and read the fields your integration needs.</div></div></li>
+                                <li><span class="gn">4</span><div><div class="strong">Run a test payment</div><div class="small muted">Launch the payment flow below with a test card.</div></div></li>
+                            </ol>
+                        </div>
+                        <div class="sheet-f">
+                            <span class="small muted">Stuck? Quote tenant <span class="mono">@Model.TenantId</span> to PCI Pal support.</span>
+                            <span class="spacer"></span>
+                            @if (Model.ShowLaunchUi && Model.ReadOnly && Model.CanDownloadSetupPack)
+                            {
+                                <partial name="_ProvGenerateSdpButton" model="@(Model.ProjectId, actingCustomerId, "btn btn-primary prov-launch-btn")" />
+                            }
+                            else if (Model.ShowLaunchUi && !Model.ReadOnly)
+                            {
+                                if (Model.CanLaunchFlow)
+                                {
+                                    <partial name="_ProvFlowLaunchButton" model="@(Model.ProjectId, actingCustomerId, "btn btn-primary prov-launch-btn")" />
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-primary prov-launch-btn is-disabled" disabled title="Available when the project is fully live">Launch payment flow</button>
+                                }
+                            }
+                        </div>
+                    </section>
+                }
+                else if (Model.PostProvisionLiveStaging)
+                {
+                    @* Hosted by PCI Pal: account exists but project is still on the Account step — test without SDP. *@
+                    <section class="sheet" aria-labelledby="prov-guide-h">
+                        <div class="sheet-h">
+                            <div class="sheet-ttl">
+                                <h2 class="h3" id="prov-guide-h">Test in staging</h2>
+                                <p class="small muted">Tenant <span class="mono">@Model.TenantId</span> · @Model.Environment.ToLowerInvariant()</p>
+                            </div>
+                        </div>
+                        <div class="sheet-b">
+                            <ol class="guide">
+                                <li><span class="gn">1</span><div><div class="strong">Allow PCI Pal through your network</div><div class="small muted">Add the staging IP addresses from Technical environment to your allow-list.</div></div></li>
+                                <li><span class="gn">2</span><div><div class="strong">Use the hosted payment page</div><div class="small muted">PCI Pal hosts the page for this build. Launch the flow below to try it in staging.</div></div></li>
+                                <li><span class="gn">3</span><div><div class="strong">Handle returned data</div><div class="small muted">Listen for polling callbacks and read the fields your integration needs.</div></div></li>
+                                <li><span class="gn">4</span><div><div class="strong">Run a test payment</div><div class="small muted">Launch the payment flow below with a test card.</div></div></li>
+                            </ol>
+                        </div>
+                        <div class="sheet-f">
+                            <span class="small muted">Stuck? Quote tenant <span class="mono">@Model.TenantId</span> to PCI Pal support.</span>
+                            <span class="spacer"></span>
+                            @if (Model.ShowLaunchUi && !Model.ReadOnly && Model.CanLaunchFlow)
+                            {
+                                <partial name="_ProvFlowLaunchButton" model="@(Model.ProjectId, actingCustomerId, "btn btn-primary prov-launch-btn")" />
+                            }
+                        </div>
+                    </section>
+                }
+
+                <section class="sheet" aria-labelledby="prov-done-h">
+                    <div class="sheet-h">
+                        <div class="sheet-ttl">
+                            <h2 class="h3" id="prov-done-h">Setup steps</h2>
+                            <p class="small muted">Tenant <span class="mono">@Model.TenantId</span> · @Model.Environment.ToLowerInvariant() · all steps finished</p>
+                        </div>
+                        <span class="tag ok num">@steps.Length of @steps.Length</span>
+                    </div>
+                    <div class="sheet-b">
+                        <ol class="steps">
+                            @for (var i = 0; i < steps.Length; i++)
+                            {
+                                <li class="prov-step is-done">
+                                    <span class="sn" aria-hidden="true">
+                                        <svg class="sn-check i xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6 9 17l-5-5" /></svg>
+                                    </span>
+                                    <div>
+                                        <div class="st">@steps[i].Item1</div>
+                                        <div class="sd">@steps[i].Item2</div>
+                                    </div>
+                                    <span class="tag ok">Done</span>
+                                </li>
+                            }
+                        </ol>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <aside class="dz-aside">
+            <section class="sheet" aria-labelledby="facts-h">
+                <div class="sheet-h"><h2 class="h3" id="facts-h">Project facts</h2></div>
+                <div class="sheet-b">
+                    <dl class="facts">
+                        <div><dt>Reference</dt><dd class="mono">@Model.ShortReference</dd></div>
+                        <div><dt>Services</dt><dd>@Model.ServicesLabel</dd></div>
+                        <div><dt>Submitted</dt><dd>@Model.SubmittedAt.ToString("d MMM yyyy")</dd></div>
+                        <div><dt>Route</dt><dd>@Model.RouteLabel</dd></div>
+                        <div><dt>Environment</dt><dd>@Model.Environment</dd></div>
+                        <div><dt>Tenant ID</dt><dd class="mono">@Model.TenantId</dd></div>
+                        <div><dt>Configuration</dt><dd data-prov-config-fact>@configStatus</dd></div>
+                        <div><dt>Primary contact</dt><dd>@primaryContact</dd></div>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="sheet prov-activity-card" id="prov-activity" aria-labelledby="act-h">
+                <div class="sheet-h">
+                    <div class="sheet-ttl">
+                        <h2 class="h3" id="act-h">Activity</h2>
+                        <p class="small muted">Newest first</p>
+                    </div>
+                    @if (activityLog.Count > 0)
+                    {
+                        <a class="link small" asp-controller="Projects" asp-action="Activity" asp-route-customerId="@(ViewData["ActingCustomerId"] as Guid?)" asp-route-id="@Model.ProjectId">Show all</a>
+                    }
+                </div>
+                <div class="sheet-b">
+                    @{
+                        ViewData["ActivityListId"] = "prov-events";
+                        ViewData["ActivityProvisioningPlaceholder"] = !Model.ShowPostProvisionLayout;
+                    }
+                    <partial name="_ProjectActivityList" />
+                </div>
+            </section>
+
+            <section class="sheet">
+                <div class="sheet-b small">
+                    <div class="strong" style="margin-bottom:4px">Who you’re working with</div>
+                    <p class="muted">The PCI Pal onboarding team handles reviews and questions. Quote <span class="mono">@Model.ShortReference</span> when you contact support.</p>
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const root = document.querySelector('[data-prov]');
+            if (!root || root.dataset.animate !== 'true') return;
+
+            const STEP_MS = 1000;
+            const total = parseInt(root.dataset.stepCount, 10) || 5;
+            const steps = Array.from(root.querySelectorAll('[data-prov-step]'));
+            const countEl = root.querySelector('[data-prov-count]');
+            const configFact = root.querySelector('[data-prov-config-fact]');
+            const events = root.querySelector('[data-prov-events]');
+            const emptyEvent = root.querySelector('[data-prov-events-empty]');
+            const demoButton = root.querySelector('[data-prov-demo]');
+            const retryButton = root.querySelector('[data-prov-retry]');
+            const progressPanel = root.querySelector('[data-prov-progress]');
+            const livePanel = root.querySelector('[data-prov-live]');
+            const launchHead = document.querySelector('[data-prov-launch-head]');
+
+            const configText = ['Preparing', 'Preparing', 'Applying', 'Applying', 'Publishing'];
+
+            let index = 0;
+            let timer = null;
+            let failed = false;
+            let finished = false;
+
+            function setState(step, state) {
+                step.classList.remove('is-waiting', 'is-running', 'is-done', 'is-failed');
+                step.classList.add('is-' + state);
+                const badge = step.querySelector('[data-prov-badge]');
+                if (badge) {
+                    badge.textContent = state === 'done' ? 'Done' : state === 'running' ? 'Running' : state === 'failed' ? 'Failed' : 'Waiting';
+                }
+                const err = step.querySelector('[data-prov-error]');
+                if (err) err.hidden = state !== 'failed';
+            }
+
+            function updateCount(done) {
+                if (countEl) countEl.textContent = done + ' of ' + total;
+            }
+
+            function addEvent(title) {
+                if (emptyEvent) emptyEvent.remove();
+                const li = document.createElement('li');
+                li.className = 'prov-activity-item';
+                const avatar = document.createElement('span');
+                avatar.className = 'prov-activity-avatar';
+                avatar.setAttribute('aria-hidden', 'true');
+                avatar.textContent = 'S';
+                const body = document.createElement('div');
+                body.className = 'prov-activity-body';
+                const time = document.createElement('span');
+                time.className = 'prov-activity-time';
+                time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const heading = document.createElement('div');
+                heading.className = 'prov-activity-title';
+                heading.textContent = title;
+                const detail = document.createElement('div');
+                detail.className = 'prov-activity-detail';
+                detail.textContent = 'Step completed. Automatic';
+                body.append(time, heading, detail);
+                li.append(avatar, body);
+                events.prepend(li);
+                // The Status page shows at most @ProjectOnboardingPresentation.ActivityPreviewCount events; the rest are on the Activity page.
+                events.querySelectorAll('.prov-activity-item').forEach(function (item, i) {
+                    if (i >= @ProjectOnboardingPresentation.ActivityPreviewCount) item.remove();
+                });
+            }
+
+            function showLiveView() {
+                finished = true;
+                if (progressPanel) progressPanel.hidden = true;
+                if (livePanel) livePanel.hidden = false;
+                if (configFact) configFact.textContent = 'Complete';
+                if (root.dataset.afterAccountGate !== 'true') {
+                    root.dataset.live = 'true';
+                    root.closest('.prov-hub-layout')?.classList.add('prov-hub-layout--live');
+                }
+                if (launchHead) launchHead.classList.remove('is-pending');
+            }
+
+            function run() {
+                failed = false;
+                if (retryButton) retryButton.hidden = true;
+                if (demoButton) demoButton.hidden = false;
+                const step = steps[index];
+                setState(step, 'running');
+                updateCount(index);
+                if (configFact) configFact.textContent = configText[index];
+
+                timer = setTimeout(function () {
+                    setState(step, 'done');
+                    addEvent(step.dataset.title);
+                    index++;
+                    updateCount(index);
+                    if (index < steps.length) {
+                        run();
+                    } else {
+                        if (demoButton) demoButton.hidden = true;
+                        showLiveView();
+                    }
+                }, STEP_MS);
+            }
+
+            if (demoButton) {
+                demoButton.addEventListener('click', function () {
+                    if (finished || failed) return;
+                    clearTimeout(timer);
+                    failed = true;
+                    const step = steps[index];
+                    setState(step, 'failed');
+                    if (configFact) configFact.textContent = 'Failed';
+                    demoButton.hidden = true;
+                    if (retryButton) retryButton.hidden = false;
+                });
+            }
+
+            if (retryButton) {
+                retryButton.addEventListener('click', function () {
+                    if (!failed) return;
+                    run();
+                });
+            }
+
+            steps.forEach(function (s) { setState(s, 'waiting'); });
+            updateCount(0);
+            run();
+        })();
+    </script>
+}

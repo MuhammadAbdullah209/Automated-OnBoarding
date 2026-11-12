@@ -1,0 +1,20 @@
+@model string
+@{
+    ViewData["Title"] = "Verify your email";
+    Layout = "_AuthLayout";
+}
+
+@* A link in an email only opens this page; the verification itself is a POST, so mail scanners that fetch links cannot use up the token. *@
+<div class="auth-panel">
+    <div>
+        <div class="auth-head">
+            <h1>Verify your email</h1>
+            <p>Confirm that you want to verify this email address.</p>
+        </div>
+
+        <form asp-action="VerifyEmail" method="post">
+            <input type="hidden" name="token" value="@Model" />
+            <button type="submit" class="btn btn-primary">Verify email</button>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,18 @@
+@model AOB.WEB.ViewModels.Auth.ForgotPasswordViewModel
+
+<form asp-controller="Auth" asp-action="ResendVerification" method="post" class="stack" data-auth-form novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+    <div class="field">
+        <label asp-for="Email" class="field-label req"></label>
+        <input asp-for="Email" class="tinput" autocomplete="username" placeholder="name@company.com" />
+        <span asp-validation-for="Email"></span>
+    </div>
+
+    <div class="auth-actions">
+        <button type="submit" class="btn btn-primary btn-lg btn-block"><span class="spinner" aria-hidden="true"></span>Resend verification email</button>
+    </div>
+</form>
+
+<p class="auth-alt" style="margin:0"><a asp-controller="Auth" asp-action="Login" class="auth-link link">&larr; Back to sign in</a></p>

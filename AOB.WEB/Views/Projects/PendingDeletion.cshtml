@@ -1,0 +1,127 @@
+@model AOB.WEB.ViewModels.Projects.PendingDeletionViewModel
+@{
+    ViewData["Title"] = Model.Name;
+    ViewData["Crumbs"] = "Projects / " + Model.Name;
+
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var remaining = Model.DeleteAt - DateTimeOffset.UtcNow;
+    if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
+    var initial = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:00}";
+}
+
+<div class="narrow-page rise">
+<div class="ph">
+    <div class="ttl">
+        <nav class="ph-crumb" aria-label="Breadcrumb">
+            <a href="@Model.ListUrl">Projects</a><span class="crumb-sep" aria-hidden="true">›</span><span>@Model.Name</span>
+        </nav>
+        <h1 class="h1">@Model.Name</h1>
+        <div class="row wrap" style="margin-top:10px">
+            <span class="court bad"><span class="who">Deleting</span>Scheduled for deletion</span>
+        </div>
+    </div>
+</div>
+
+<div class="page-stack">
+<partial name="_FlashMessages" />
+
+<section class="sheet delete-countdown-page">
+    <div class="sheet-h">
+        <div class="sheet-ttl">
+            <h2 class="h3">Deletion countdown</h2>
+        </div>
+    </div>
+    <div class="sheet-b stack">
+        <div role="timer" aria-live="polite" aria-atomic="true" class="stack-sm"
+             data-delete-banner
+             data-deadline="@Model.DeleteAt.UtcDateTime.ToString("o")"
+             data-after="@Model.ListUrl"
+             data-probe="@Context.Request.Path">
+            <p class="del-clock" data-delete-countdown>@initial</p>
+            <p class="lede" data-delete-status>
+                @if (Model.CanRestore)
+                {
+                    @:This project will be permanently deleted at @Model.DeleteAt.ToLocalTime().ToString("ddd d MMM yyyy, HH:mm"). Its setup answers, documents and provisioning details will be removed. You can restore it until the countdown ends.
+                }
+                else if (readOnlyStaff)
+                {
+                    @:This project will be permanently deleted at @Model.DeleteAt.ToLocalTime().ToString("ddd d MMM yyyy, HH:mm"). Its setup answers, documents and provisioning details will be removed.
+                }
+                else
+                {
+                    @:The time to restore this project has ended. It will be removed shortly.
+                }
+            </p>
+        </div>
+
+        <dl class="dl">
+            <dt>Reason</dt>
+            <dd style="white-space:pre-line">@(string.IsNullOrWhiteSpace(Model.Reason) ? "No reason was recorded." : Model.Reason)</dd>
+        </dl>
+    </div>
+    <div class="sheet-f">
+        <a href="@Model.ListUrl" class="btn btn-text">&lt; All projects</a>
+        <span class="spacer"></span>
+        @if (!readOnlyStaff)
+        {
+            <form asp-action="Restore" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" style="margin:0">
+                <button type="submit" class="btn btn-primary" data-restore-button @(Model.CanRestore ? null : "disabled")>Restore project</button>
+            </form>
+        }
+    </div>
+</section>
+</div>
+</div>
+
+<script>
+    (function () {
+        var listUrl = @Json.Serialize(Model.ListUrl);
+        var banner = document.querySelector('[data-delete-banner]');
+        if (!banner) return;
+
+        // Back leaves the countdown for the project list, not the project page.
+        history.pushState({ aobPendingDeletion: true }, '', location.href);
+        window.addEventListener('popstate', function () {
+            location.replace(listUrl);
+        });
+
+        var deadline = new Date(banner.getAttribute('data-deadline')).getTime();
+        var label = banner.querySelector('[data-delete-countdown]');
+        var status = banner.querySelector('[data-delete-status]');
+        var restore = document.querySelector('[data-restore-button]');
+        var after = banner.getAttribute('data-after');
+        var probe = banner.getAttribute('data-probe');
+        var ended = false;
+
+        function pad(n) { return n < 10 ? '0' + n : '' + n; }
+        function endRestore() {
+            if (ended) return;
+            ended = true;
+            if (restore) restore.disabled = true;
+            if (status) {
+                status.textContent = restore
+                    ? 'The time to restore this project has ended. It will be removed shortly.'
+                    : 'This project is being removed.';
+            }
+            clearInterval(timer);
+            var check = function () {
+                fetch(probe, { credentials: 'same-origin', redirect: 'manual' }).then(function (r) {
+                    if (r.status === 404) { window.location.replace(after); } else { setTimeout(check, 4000); }
+                }).catch(function () { setTimeout(check, 4000); });
+            };
+            check();
+        }
+        function tick() {
+            var left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+            if (left > 0) {
+                label.textContent = Math.floor(left / 60) + ':' + pad(left % 60);
+                return;
+            }
+            label.textContent = '0:00';
+            endRestore();
+        }
+        var timer = setInterval(tick, 1000);
+        tick();
+    })();
+</script>

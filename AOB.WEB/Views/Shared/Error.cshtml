@@ -1,0 +1,17 @@
+﻿@model ErrorViewModel
+@{
+    ViewData["Title"] = "Something went wrong";
+}
+
+<div class="sheet" style="max-width:640px;margin:0 auto">
+    <div class="sheet-b stack-sm">
+        <div class="eyebrow" style="color:var(--bad-ink)">Error</div>
+        <h1 class="h1">Something went wrong</h1>
+        <p class="lede">An error occurred while processing your request. If this keeps happening, contact PCI Pal support.</p>
+        @if (Model.ShowRequestId)
+        {
+            <p class="small muted">Reference: <span class="mono">@Model.RequestId</span></p>
+        }
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">Back to Home</a>
+    </div>
+</div>

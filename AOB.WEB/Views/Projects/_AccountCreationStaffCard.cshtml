@@ -1,0 +1,122 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@*
+    Internal-only steps for projects in account creation: request users CSV, mark account created, mark completed.
+*@
+@{
+    var isStaff = ViewData["ReadOnlyStaff"] is true;
+    var canApprove = User.IsInRole(AppRoles.InternalUser);
+    var stepsComplete = ViewData["ProvisioningStepsComplete"] is true;
+    var accountCreated = ViewData["AccountCreated"] is true;
+    var users = ViewData["CustomerUsers"] as IReadOnlyList<CustomerUserDto> ?? Array.Empty<CustomerUserDto>();
+    var userCount = users.Count;
+    var useSheet = ViewData["StaffOverviewSheets"] is true;
+    var visible = isStaff
+        && Model.RequiresAccount
+        && Model.Status is ProjectStatus.AccountCreation or ProjectStatus.Completed
+        && (stepsComplete || userCount > 0);
+}
+
+@if (visible)
+{
+    var csvRequested = Model.UsersCsvRequestedAt is not null;
+    var statusBadge = accountCreated
+        ? ("badge-green", "ok", "Account created")
+        : userCount > 0
+            ? ("badge-green", "ok", "Users ready")
+            : csvRequested
+                ? ("badge-navy", "pp", "CSV requested")
+                : ("badge-gray", "", "Users needed");
+
+    var shellTag = useSheet ? "section" : "div";
+    var shellClass = useSheet ? "sheet staff-overview-sheet" : "card info-card";
+    var headClass = useSheet ? "sheet-h" : "card-header";
+    var bodyClass = useSheet ? "sheet-b" : "card-pad";
+
+    @:<@(shellTag) class="@shellClass" id="account-creation-staff" @(useSheet ? Html.Raw("aria-labelledby=\"account-creation-staff-h\"") : null)>
+        <div class="@headClass">
+            <div class="@(useSheet ? "sheet-ttl" : "")">
+                @if (useSheet)
+                {
+                    <h2 class="h3" id="account-creation-staff-h">Account creation</h2>
+                    <p class="small muted">Provisioning is done. Collect the users CSV, create the account, then close out the project.</p>
+                }
+                else
+                {
+                    <h3>Account creation</h3>
+                    <div class="sub">Provisioning is done. Collect the users CSV, create the account, then close out the project.</div>
+                }
+            </div>
+            @if (useSheet)
+            {
+                <span class="tag @statusBadge.Item2">@statusBadge.Item3</span>
+            }
+            else
+            {
+                <span class="badge @statusBadge.Item1"><span class="bd"></span>@statusBadge.Item3</span>
+            }
+        </div>
+        <div class="@bodyClass">
+            @if (Model.Status == ProjectStatus.AccountCreation && !accountCreated)
+            {
+                @if (userCount == 0)
+                {
+                    <div class="staff-workflow-row">
+                        <div class="staff-workflow-side">
+                            @if (canApprove && !csvRequested)
+                            {
+                                <form asp-action="RequestUsersCsv" asp-route-id="@Model.Id" method="post" class="staff-workflow-form" data-ajax="advance">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-primary btn-sm">Request users CSV</button>
+                                </form>
+                            }
+                            else if (csvRequested)
+                            {
+                                <span class="staff-workflow-note">Waiting for the customer to upload the file.</span>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="staff-workflow-row">
+                        <p class="staff-workflow-lead mb-0">
+                            @userCount user@(userCount == 1 ? "" : "s") uploaded. Create the account in your tools, then confirm here.
+                        </p>
+                        @if (canApprove)
+                        {
+                            <div class="staff-workflow-side">
+                                <form asp-action="MarkAccountCreated" asp-route-id="@Model.Id" method="post" class="staff-workflow-form" data-ajax="advance">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-primary btn-sm">Mark account created</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else if (Model.Status == ProjectStatus.AccountCreation && accountCreated && canApprove)
+            {
+                <div class="staff-workflow-row">
+                    <p class="staff-workflow-lead mb-0">The account is marked created. Mark the project completed when you are done.</p>
+                    <div class="staff-workflow-side">
+                        <form asp-action="MarkCompleted" asp-route-id="@Model.Id" method="post" class="staff-workflow-form" data-ajax="advance">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-primary btn-sm">Mark completed</button>
+                        </form>
+                    </div>
+                </div>
+            }
+            else if (Model.Status == ProjectStatus.AccountCreation && accountCreated)
+            {
+                <p class="staff-workflow-lead mb-0">The account was created.</p>
+            }
+            else if (Model.Status == ProjectStatus.Completed)
+            {
+                <p class="staff-workflow-lead mb-0">Completed.</p>
+            }
+        </div>
+    @:</@(shellTag)>
+}

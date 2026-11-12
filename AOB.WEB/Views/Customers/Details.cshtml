@@ -1,0 +1,11 @@
+@model AOB.WEB.ViewModels.Customers.CustomerProfileOverviewViewModel
+@{
+    var displayName = string.IsNullOrWhiteSpace(Model.Profile.CompanyName)
+        ? "Unnamed customer"
+        : Model.Profile.CompanyName!;
+    ViewData["Title"] = displayName;
+    ViewData["Crumbs"] = $"Customers / {displayName}";
+}
+
+<partial name="_CustomerProfileOverview" model="Model" />
+

@@ -1,0 +1,38 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Activity
+@{
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = "Activity";
+    ViewData["FlowSubtitle"] = $"Activity · {ProjectOptions.ProjectStatusLabels[Model.Status]}";
+    var readOnlyStaff = ViewData["ReadOnlyStaff"] is true;
+    var activityLog = ViewData["ProjectActivity"] as IReadOnlyList<ActivityLogDto> ?? Array.Empty<ActivityLogDto>();
+
+    // Same Status / Details / Activity tabs as the other hub pages.
+    if (Model.IsSubmitted || readOnlyStaff)
+    {
+        ViewData["ProjectHubMode"] = true;
+        ViewData["ProjectHubLive"] = Model.Status is ProjectStatus.Completed or ProjectStatus.AccountCreation;
+        ViewData["ShowLaunchFlow"] = !readOnlyStaff && Model.Status == ProjectStatus.Completed && Model.BuildType != BuildType.Custom;
+    }
+
+    ViewData["ActivityListId"] = "project-activity-all";
+    ViewData["ActivityShowAll"] = true;
+}
+
+<section class="sheet project-activity-page" aria-labelledby="activity-page-h">
+    <div class="sheet-h">
+        <div class="sheet-ttl">
+            <h2 class="h3" id="activity-page-h">Activity</h2>
+            <p class="small muted">Everything that has happened on this project, newest first.</p>
+        </div>
+        @if (activityLog.Count > 0)
+        {
+            <span class="tag">@activityLog.Count @(activityLog.Count == 1 ? "event" : "events")</span>
+        }
+    </div>
+    <div class="sheet-b">
+        <partial name="_ProjectActivityList" />
+    </div>
+</section>

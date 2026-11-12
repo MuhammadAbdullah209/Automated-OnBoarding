@@ -1,0 +1,190 @@
+@model IReadOnlyList<AOB.BAL.Entities.VisitorIp>
+@{
+    ViewData["Title"] = "IP addresses";
+    ViewData["Crumbs"] = "IP addresses";
+    ViewData["FullBleed"] = true;
+    var query = ViewData["Query"] as string;
+    var blockedOnly = ViewData["BlockedOnly"] is true;
+    var total = (int)ViewData["Total"]!;
+    var myIp = ViewData["MyIp"] as string;
+    var hasFilter = !string.IsNullOrWhiteSpace(query) || blockedOnly;
+
+    string Place(AOB.BAL.Entities.VisitorIp v)
+    {
+        var parts = new[] { v.City, v.Region, v.Country }.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct();
+        var text = string.Join(", ", parts);
+        return text.Length == 0 ? "Unknown" : text;
+    }
+}
+
+<div class="wrap rise projects-band">
+    <div class="projects-ph ip-addresses-ph">
+        <div class="ttl">
+            <div class="eyebrow">Super admin</div>
+            <h1 class="h1">IP addresses</h1>
+            <p class="lede">Where the portal is being used from. Block an address to stop it reaching any page.</p>
+        </div>
+    </div>
+</div>
+
+<div class="wrap rise projects-page ip-addresses-page">
+    <partial name="_FlashMessages" />
+
+    <section class="sheet ip-block-sheet" aria-labelledby="ip-block-h">
+        <div class="sheet-h">
+            <div class="sheet-ttl">
+                <h2 class="h3" id="ip-block-h">Block an address</h2>
+                <p class="small muted">Works for any address, even one that has not visited yet. Your own address (<span class="mono">@myIp</span>) cannot be blocked.</p>
+            </div>
+        </div>
+        <form asp-action="Block" method="post" class="sheet-b ip-block-form" novalidate>
+            @Html.AntiForgeryToken()
+            <div class="ip-block-fields">
+                <div class="field">
+                    <label class="field-label" for="ip">IP address</label>
+                    <input id="ip" name="ip" class="tinput mono" required maxlength="45" placeholder="203.0.113.7" autocomplete="off" />
+                </div>
+                <div class="field ip-block-reason">
+                    <label class="field-label" for="reason">Reason <span class="opt">Optional</span></label>
+                    <input id="reason" name="reason" class="tinput" maxlength="300" placeholder="Why is it blocked?" />
+                </div>
+                <div class="ip-block-submit">
+                    <button type="submit" class="btn btn-danger">Block address</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section class="sheet ip-list-sheet" aria-labelledby="ip-list-h" style="overflow:hidden">
+        <div class="sheet-h ip-list-sheet-h">
+            <div class="sheet-ttl">
+                <h2 class="h3" id="ip-list-h">Addresses</h2>
+                <p class="small muted">
+                    @total @(total == 1 ? "address" : "addresses")@(total > Model.Count ? $" · showing the latest {Model.Count}" : "")
+                </p>
+            </div>
+            @if (total > 0 || hasFilter)
+            {
+                <form method="get" class="ip-list-search" role="search">
+                    <div class="field ip-list-search-field">
+                        <label class="sr-only" for="ip-search-q">Search addresses</label>
+                        <div class="search">
+                            <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2" /><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+                            <input id="ip-search-q" name="q" value="@query" class="input tinput" type="search" placeholder="Search IP, place or user" autocomplete="off" />
+                        </div>
+                    </div>
+                    <label class="ip-list-filter">
+                        <input type="checkbox" name="blockedOnly" value="true" @(blockedOnly ? "checked" : null) onchange="this.form.requestSubmit()" />
+                        <span>Blocked only</span>
+                    </label>
+                    <div class="ip-list-search-actions">
+                        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+                        <a asp-action="Index" class="btn btn-text btn-sm">Clear</a>
+                    </div>
+                </form>
+            }
+        </div>
+
+        @if (Model.Count == 0)
+        {
+            <div class="empty">
+                @if (hasFilter)
+                {
+                    <h3 class="h3">No addresses match</h3>
+                    <p class="muted">
+                        @if (blockedOnly)
+                        {
+                            @:Only blocked addresses are shown. Untick “Blocked only” to search all addresses, or clear the filters.
+                        }
+                        else
+                        {
+                            @:Try another search or clear the filters.
+                        }
+                    </p>
+                    <a asp-action="Index" class="btn btn-quiet btn-sm">Clear filters</a>
+                }
+                else
+                {
+                    <h3 class="h3">No addresses yet</h3>
+                    <p class="muted">Addresses appear here after they open a page.</p>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="ptable-wrap">
+                <table class="ptable projects-table ip-addresses-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">IP address</th>
+                            <th scope="col">Location</th>
+                            <th scope="col">Network</th>
+                            <th scope="col">Requests</th>
+                            <th scope="col">Last seen</th>
+                            <th scope="col">Last user</th>
+                            <th scope="col">Status</th>
+                            <th scope="col"><span class="sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="mono strong">@v.IpAddress</span>
+                                    @if (v.IpAddress == myIp)
+                                    {
+                                        <span class="xsmall muted"> (you)</span>
+                                    }
+                                </td>
+                                <td class="small">@Place(v)</td>
+                                <td class="small muted">@(string.IsNullOrWhiteSpace(v.Isp) ? "—" : v.Isp)</td>
+                                <td class="num small">@v.HitCount.ToString("N0")</td>
+                                <td class="num small muted" title="First seen @v.FirstSeenAt.ToLocalTime():d MMM yyyy HH:mm">@v.LastSeenAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <td class="small muted">@(v.LastUserName ?? "—")</td>
+                                <td>
+                                    @if (v.IsBlocked)
+                                    {
+                                        <span class="tag bad" title="@(v.BlockedReason ?? "No reason given")@(v.BlockedByName is null ? "" : " · " + v.BlockedByName)">Blocked</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="tag ok">Allowed</span>
+                                    }
+                                </td>
+                                <td style="text-align:right">
+                                    <div class="row-actions">
+                                        @if (v.IsBlocked)
+                                        {
+                                            <form asp-action="Unblock" asp-route-id="@v.Id" method="post" class="admin-inline-form"
+                                                  data-confirm-title="Unblock this address?"
+                                                  data-confirm="@v.IpAddress will be able to use the portal again."
+                                                  data-confirm-ok="Yes, unblock">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-quiet">Unblock</button>
+                                            </form>
+                                        }
+                                        else if (v.IpAddress != myIp)
+                                        {
+                                            <form asp-action="Block" method="post" class="admin-inline-form"
+                                                  data-confirm-title="Block this address?"
+                                                  data-confirm="@v.IpAddress will get an access denied page on every request."
+                                                  data-confirm-ok="Yes, block">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="ip" value="@v.IpAddress" />
+                                                <button type="submit" class="btn btn-sm btn-quiet">Block</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="sheet-f">
+                <span class="small muted">Showing @Model.Count of @total @(total == 1 ? "address" : "addresses")</span>
+            </div>
+        }
+    </section>
+</div>

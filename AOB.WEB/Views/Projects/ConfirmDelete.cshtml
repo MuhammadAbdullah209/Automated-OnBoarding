@@ -1,0 +1,89 @@
+@model AOB.WEB.ViewModels.Projects.DeleteProjectViewModel
+@{
+    ViewData["Title"] = "Delete " + Model.Name;
+    ViewData["Crumbs"] = "Projects / Delete";
+
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var listUrl = actingCustomerId is Guid customerId
+        ? Url.Action("Index", new { customerId })!
+        : Url.Action("Index")!;
+    var window = Model.GracePeriodMinutes == 1
+        ? "1 minute"
+        : $"{Model.GracePeriodMinutes} minutes";
+}
+
+<div class="narrow-page rise">
+    <div class="ph">
+        <div class="ttl">
+            <nav class="ph-crumb" aria-label="Breadcrumb">
+                <a href="@listUrl">Projects</a><span class="crumb-sep" aria-hidden="true">›</span><span>@Model.Name</span><span class="crumb-sep" aria-hidden="true">›</span><span>Delete</span>
+            </nav>
+        </div>
+    </div>
+
+    <div class="page-stack form-page">
+        <form asp-action="ConfirmDelete" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" method="post" class="sheet sheet-form" novalidate>
+            <div class="sheet-b">
+                <span class="qic bad" aria-hidden="true">
+                    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg>
+                </span>
+                <div class="stack-sm">
+                    <h1 class="h2">Delete “@Model.Name”?</h1>
+                    <p class="muted">A @window countdown starts when you delete. Nothing is removed until it ends, and you can restore the project until then.</p>
+                </div>
+
+                <div asp-validation-summary="ModelOnly" class="form-errors errsum" role="alert"></div>
+
+                <div class="field">
+                    <label asp-for="Reason" class="field-label req"></label>
+                    <div class="hint">Shown on the project while the deletion countdown runs.</div>
+                    <textarea asp-for="Reason" class="tinput" rows="4" maxlength="1000" placeholder="Why is this project being deleted?"></textarea>
+                    <span asp-validation-for="Reason"></span>
+                </div>
+
+                <div class="field">
+                    <label class="check" for="Confirmed">
+                        <input type="checkbox" id="Confirmed" name="Confirmed" value="true"
+                               data-val="true" data-val-required="Confirm that this project should be deleted."
+                               @(Model.Confirmed ? "checked" : null) />
+                        <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5" /></svg></span>
+                        <span class="check-text">I confirm this project should be deleted.</span>
+                    </label>
+                    <span class="field-validation-valid" data-valmsg-for="Confirmed" data-valmsg-replace="true"></span>
+                </div>
+            </div>
+            <div class="sheet-f">
+                <a href="@listUrl" class="btn btn-quiet">Cancel</a>
+                <span class="spacer"></span>
+                <button type="submit" class="btn danger-solid">Delete project</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            // jquery-validation skips data-val-required on checkboxes, so require this one directly.
+            if (window.jQuery) {
+                var confirmForm = document.querySelector('form[action*="ConfirmDelete"]');
+                var validator = jQuery(confirmForm).data('validator') || jQuery(confirmForm).validate();
+                validator.settings.rules.Confirmed = { required: true };
+                validator.settings.messages.Confirmed = { required: 'Confirm that this project should be deleted.' };
+            }
+
+            var listUrl = @Json.Serialize(listUrl);
+            sessionStorage.removeItem('aob-back-to-projects');
+            history.pushState({ aobConfirmDelete: true }, '', location.href);
+            window.addEventListener('popstate', function () {
+                location.replace(listUrl);
+            });
+            window.addEventListener('pageshow', function (e) {
+                if (!e.persisted) return;
+                sessionStorage.setItem('aob-back-to-projects', '1');
+                location.reload();
+            });
+        })();
+    </script>
+}

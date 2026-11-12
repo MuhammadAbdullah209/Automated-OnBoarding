@@ -1,0 +1,205 @@
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@using AOB.WEB.Helpers
+@{
+    Layout = "~/Views/Projects/_ProjectFlowLayout.cshtml";
+    ViewData["Title"] = "Document requests";
+    var project = (ProjectOverviewDto)ViewData["Project"]!;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    ViewData["FlowSubtitle"] = $"Document requests · {AOB.BAL.Common.Constants.ProjectOptions.ProjectStatusLabels[project.Status]}";
+    if (project.IsSubmitted)
+    {
+        ViewData["ProjectHubMode"] = true;
+    }
+
+    // Every requested document on its own: the ones waiting for the customer first (oldest first), then the ones
+    // in review, then the closed ones.
+    var items = ((IReadOnlyList<InformationRequestDto>)ViewData["InformationRequests"]!)
+        .SelectMany(r => r.Items)
+        .OrderBy(i => i.NeedsCustomer ? 0 : i.AwaitingReview ? 1 : 2)
+        .ThenBy(i => i.CreatedAt)
+        .ToList();
+    var waiting = items.Count(i => i.NeedsCustomer);
+}
+
+<section class="sheet" aria-labelledby="doc-requests-h">
+    <div class="sheet-h">
+        <div class="sheet-ttl">
+            <h2 class="h3" id="doc-requests-h">Document requests from PCI Pal</h2>
+            <p class="small muted">
+                @if (waiting > 0)
+                {
+                    @($"{waiting} {(waiting == 1 ? "request needs" : "requests need")} your response. Answer each one on its own: upload the document, add a note, or both.")
+                }
+                else
+                {
+                    @("Nothing needs your response right now. We’ll email you if we need anything else.")
+                }
+            </p>
+        </div>
+    </div>
+
+    <div class="sheet-b">
+        @foreach (var item in items)
+        {
+            var anchor = $"request-{item.Id:N}";
+            var fileId = $"file_{item.Id:N}";
+            var noteId = $"note_{item.Id:N}";
+            <article class="qitem doc-request" id="@anchor" aria-labelledby="@(anchor)-h">
+                <div class="doc-request-head">
+                    <h3 class="doc-request-title" id="@(anchor)-h">@item.Title</h3>
+                    <span class="badge badge-sm @InformationRequestUi.ItemBadge(item.Status)"><span class="bd"></span>@InformationRequestUi.CustomerItemLabel(item.Status)</span>
+                </div>
+                <p class="small muted" style="margin:2px 0 8px">
+                    Requested @item.CreatedAt.ToLocalTime().ToString("d MMM yyyy")@(string.IsNullOrWhiteSpace(item.RequestedByName) ? " by the PCI Pal onboarding team" : $" by {item.RequestedByName}")
+                </p>
+                @if (!string.IsNullOrWhiteSpace(item.Description))
+                {
+                    <p class="hint" style="margin-bottom:6px">@item.Description</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(item.Instructions))
+                {
+                    <div class="note plain" style="margin-bottom:10px">
+                        <div class="nt">Note from PCI Pal</div>
+                        <div class="nd" style="white-space:pre-line">@item.Instructions</div>
+                    </div>
+                }
+
+                @if (item.Status == InformationItemStatus.Rejected && !string.IsNullOrWhiteSpace(item.ReviewNote))
+                {
+                    <div class="note you" style="margin-bottom:10px">
+                        <div class="nd"><strong>Your last response was rejected:</strong> @item.ReviewNote</div>
+                    </div>
+                }
+                else if (item.Status == InformationItemStatus.Resolved && !string.IsNullOrWhiteSpace(item.ReviewNote))
+                {
+                    <div class="note plain" style="margin-bottom:10px">
+                        <div class="nd"><strong>Resolved:</strong> @item.ReviewNote</div>
+                    </div>
+                }
+
+                @if (!item.NeedsCustomer && item.SubmittedAt is not null)
+                {
+                    <div class="info-item-response">
+                        <div class="info-item-k">Your response · @item.SubmittedAt.Value.ToLocalTime().ToString("d MMM yyyy, HH:mm")</div>
+                        @if (item.DocumentId is Guid docId)
+                        {
+                            <div class="info-item-line">
+                                <a asp-action="DownloadInformationDocument" asp-route-customerId="@actingCustomerId" asp-route-id="@project.Id" asp-route-documentId="@docId" class="link mono">@(item.DocumentName ?? "Document")</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="info-item-line muted">Note only, no document.</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(item.CustomerNote))
+                        {
+                            <div class="info-item-line" style="white-space:pre-line">@item.CustomerNote</div>
+                        }
+                    </div>
+                }
+
+                @if (item.NeedsCustomer)
+                {
+                    var resubmit = item.Status == InformationItemStatus.Rejected;
+                    <form asp-action="ProvideInformation" asp-route-customerId="@actingCustomerId" asp-route-id="@project.Id" method="post" enctype="multipart/form-data" data-provide-form>
+                        <input type="hidden" name="itemId" value="@item.Id" />
+                        <label class="drop" data-drop>
+                            <input type="file" id="@fileId" name="file" aria-label="@(resubmit ? "Upload a new document" : "Upload the document") for @item.Title" />
+                            <span class="drop-ic" aria-hidden="true">
+                                <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                            </span>
+                            <span style="flex:1" data-drop-label>Drop a file here, or choose one</span>
+                            <span class="btn btn-sm btn-quiet" aria-hidden="true">Choose file</span>
+                        </label>
+                        <div class="field" style="margin-top:10px">
+                            <label class="field-label" for="@noteId">Note for the PCI Pal team <span class="opt">Optional</span></label>
+                            <textarea id="@noteId" name="note" class="tinput" rows="2" maxlength="2000"
+                                      placeholder="@(resubmit ? "Explain what changed, or why the document can’t be provided" : "Add any context about what you’re sending")"></textarea>
+                        </div>
+                        <div class="row" style="justify-content:flex-end;margin-top:10px">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+                                @(resubmit ? "Resubmit" : "Submit")
+                            </button>
+                        </div>
+                    </form>
+                }
+
+                @if (item.History.Count > 0)
+                {
+                    <partial name="_InformationResponseHistory" model="@((project.Id, item.History))" />
+                }
+            </article>
+        }
+    </div>
+
+    <div class="sheet-f">
+        <a asp-action="Details" asp-route-customerId="@actingCustomerId" asp-route-id="@project.Id" class="btn btn-text">Back to project</a>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        // A note without a file: ask the customer to confirm before sending; nothing at all: ask for one or the other.
+        // Runs on DOMContentLoaded: the project layout writes this section before SweetAlert2 is loaded.
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('form[data-provide-form]').forEach(function (form) {
+                var confirmed = false;
+                form.addEventListener('submit', function (e) {
+                    if (confirmed) return;
+                    var hasFile = form.querySelector('input[type="file"]').files.length > 0;
+                    var hasNote = form.querySelector('textarea[name="note"]').value.trim().length > 0;
+                    if (hasFile) return;
+
+                    e.preventDefault();
+                    if (typeof Swal === 'undefined') {
+                        if (hasNote) { confirmed = true; form.requestSubmit(); }
+                        return;
+                    }
+                    if (!hasNote) {
+                        Swal.fire({
+                            title: 'Nothing to send yet',
+                            text: 'Upload the document, or add a note, before submitting.',
+                            icon: 'info',
+                            confirmButtonText: 'OK',
+                            customClass: { confirmButton: 'swal2-confirm-brand' }
+                        });
+                        return;
+                    }
+                    Swal.fire({
+                        title: 'Send without a document?',
+                        text: 'You’ve only added a note. Send it to PCI Pal without attaching a document?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        reverseButtons: true,
+                        confirmButtonText: 'Send note only',
+                        cancelButtonText: 'Go back',
+                        customClass: { confirmButton: 'swal2-confirm-brand', cancelButton: 'swal2-cancel-brand' }
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            confirmed = true;
+                            form.requestSubmit();
+                        }
+                    });
+                });
+            });
+        });
+
+        // Show the chosen file's name in each drop area (dropping a file onto the area fills the input natively).
+        document.querySelectorAll('[data-drop]').forEach(function (zone) {
+            var input = zone.querySelector('input[type="file"]');
+            var label = zone.querySelector('[data-drop-label]');
+            input.addEventListener('change', function () {
+                label.textContent = input.files.length ? input.files[0].name + ' · ready to send' : 'Drop a file here, or choose one';
+                zone.classList.toggle('has-file', input.files.length > 0);
+            });
+            ['dragenter', 'dragover'].forEach(function (name) {
+                zone.addEventListener(name, function () { zone.classList.add('is-over'); });
+            });
+            ['dragleave', 'drop'].forEach(function (name) {
+                zone.addEventListener(name, function () { zone.classList.remove('is-over'); });
+            });
+        });
+    </script>
+}

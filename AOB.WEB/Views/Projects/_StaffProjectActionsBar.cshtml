@@ -1,0 +1,58 @@
+@model AOB.BAL.DTOs.Projects.ProjectOverviewDto
+@using AOB.BAL.Common.Constants
+@using AOB.BAL.Common.Enums
+@using AOB.BAL.DTOs.Projects
+@{
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    var canApprove = User.IsInRole(AppRoles.InternalUser);
+    var isCustom = Model.BuildType == BuildType.Custom;
+    var stepsComplete = ViewData["ProvisioningStepsComplete"] is true;
+    var useStaffSheets = ViewData["StaffOverviewSheets"] is true;
+    var showSubmittedAdvance = Model.Status == ProjectStatus.Submitted && canApprove;
+    var showStandardApproval = !isCustom && Model.Status == ProjectStatus.Approval && canApprove;
+    var showProvisioningActions = Model.Status == ProjectStatus.Provisioning && canApprove;
+    var showCustomSdp = isCustom && Model.Status == ProjectStatus.Completed && stepsComplete;
+    var showBar = !useStaffSheets
+        ? canApprove || Model.Status is ProjectStatus.Submitted or ProjectStatus.Approval or ProjectStatus.Provisioning
+        : showSubmittedAdvance || showStandardApproval || showProvisioningActions || showCustomSdp;
+}
+
+@if (showBar)
+{
+    <div class="staff-actions-bar flow-staff-section flow-section--first">
+        <div class="staff-actions-bar-inner review-validate-footer-actions">
+            @if (showSubmittedAdvance)
+            {
+                <form asp-action="AdvanceWorkflow" asp-route-id="@Model.Id" method="post" class="staff-inline-form" data-ajax="advance">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary btn-sm">Move to approval</button>
+                </form>
+            }
+            else if (showStandardApproval)
+            {
+                <form asp-action="AdvanceWorkflow" asp-route-id="@Model.Id" method="post" class="staff-inline-form" data-ajax="advance">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary btn-sm">Approve and start provisioning</button>
+                </form>
+            }
+            else if (Model.Status == ProjectStatus.Provisioning && isCustom && stepsComplete && !Model.RequiresAccount && canApprove)
+            {
+                <form asp-action="MarkCompleted" asp-route-id="@Model.Id" method="post" class="staff-inline-form" data-ajax="advance">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary btn-sm">Mark completed</button>
+                </form>
+            }
+            else if (Model.Status == ProjectStatus.Provisioning && canApprove)
+            {
+                <form asp-action="AdvanceWorkflow" asp-route-id="@Model.Id" method="post" class="staff-inline-form" data-ajax="advance">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-secondary btn-sm">Run provisioning again</button>
+                </form>
+            }
+            else if (showCustomSdp)
+            {
+                <a asp-action="SetupDocument" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.Id" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Generate SDP</a>
+            }
+        </div>
+    </div>
+}

@@ -1,0 +1,64 @@
+@model IReadOnlyList<AOB.BAL.DTOs.Customers.DirectCustomerSummaryDto>
+@{
+    ViewData["Title"] = "Direct customers";
+    ViewData["Crumbs"] = "Direct customers";
+}
+
+<div class="rise">
+    <div class="ph">
+        <div class="ttl">
+            <h1 class="h1" style="margin-top:6px">Direct customers</h1>
+            <p class="lede" style="margin-top:4px">Customers who signed up themselves and are owned by PCI Pal.</p>
+        </div>
+    </div>
+
+    <div class="page-stack">
+        <partial name="_FlashMessages" />
+
+        <section class="sheet" style="overflow:hidden">
+            <div class="sheet-h">
+                <div class="sheet-ttl">
+                    <h2 class="h3">All direct customers</h2>
+                    <p class="small muted">@Model.Count @(Model.Count == 1 ? "customer" : "customers")</p>
+                </div>
+            </div>
+
+            @if (Model.Count == 0)
+            {
+                <div class="empty">
+                    <div class="art" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                    <h3 class="h3">No direct customers yet</h3>
+                    <p>Customers who create their own onboarding account will appear here.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-scroll">
+                    <table class="ptable static">
+                        <thead>
+                            <tr>
+                                <th>Company name</th>
+                                <th>Sign-in email</th>
+                                <th>Email</th>
+                                <th>Signed up</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model)
+                            {
+                                <tr>
+                                    <td><span class="name">@(string.IsNullOrWhiteSpace(c.CompanyName) ? "Unnamed customer" : c.CompanyName)</span></td>
+                                    <td class="text-muted">@c.Email</td>
+                                    <td>
+                                        <span class="tag @(c.EmailConfirmed ? "ok" : "you")">@(c.EmailConfirmed ? "Verified" : "Not verified")</span>
+                                    </td>
+                                    <td class="text-muted">@c.CreatedAt.ToString("d MMM yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+</div>

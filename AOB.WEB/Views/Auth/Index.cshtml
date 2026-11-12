@@ -1,0 +1,155 @@
+@model AOB.WEB.ViewModels.Auth.AuthPageViewModel
+@using AOB.WEB.ViewModels.Auth
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "_AuthLayout";
+
+    ViewData["AuthHero"] = Model.Mode switch
+    {
+        AuthMode.Register => new[] { "Set up once.", "Follow every step after.", "Create an account, describe your payment journey, and PCI Pal takes it from there." },
+        AuthMode.ForgotPassword or AuthMode.VerifyOtp or AuthMode.ResetPassword => new[] { "Get back to", "your onboarding.", "We'll email a short code to confirm it's you." },
+        AuthMode.CheckEmail or AuthMode.ResendVerification => new[] { "One quick check,", "then you're in.", "Verify your work email to activate your onboarding account." },
+        _ => new[] { "Your PCI Pal onboarding,", "in one clear view.", "See where every project stands, what PCI Pal needs from you, and when you go live." }
+    };
+
+    var showExample = Model.Mode is AuthMode.Login or AuthMode.Register or AuthMode.ForgotPassword
+        or AuthMode.VerifyOtp or AuthMode.ResetPassword or AuthMode.CheckEmail or AuthMode.ResendVerification;
+    ViewData["ShowAuthExample"] = showExample;
+
+    var resetStep = Model.Mode switch
+    {
+        AuthMode.ForgotPassword => 0,
+        AuthMode.VerifyOtp => 1,
+        AuthMode.ResetPassword => 2,
+        _ => -1
+    };
+
+    var showSteps3 = resetStep >= 0;
+    var showEyebrow = Model.Mode switch
+    {
+        AuthMode.ForgotPassword or AuthMode.VerifyOtp or AuthMode.ResetPassword => false,
+        _ => true
+    };
+
+    var eyebrow = Model.Mode switch
+    {
+        AuthMode.Register => "Step 1 of 2 · Account",
+        AuthMode.CheckEmail => "Step 2 of 2 · Verify",
+        AuthMode.ResendVerification => "Verify your email",
+        AuthMode.ChangeTemporaryPassword => "Set your password",
+        _ => "Welcome back"
+    };
+
+    string? subtitle = Model.Mode switch
+    {
+        AuthMode.Register => "Use your work email. We'll send a link to verify it before you can sign in.",
+        AuthMode.ForgotPassword => "Enter your work email and we'll email you a 6-digit code.",
+        AuthMode.VerifyOtp => null,
+        AuthMode.ResetPassword => "Code accepted. Pick a password you haven't used for this account.",
+        AuthMode.ChangeTemporaryPassword => "Choose a new password to finish setting up your account.",
+        AuthMode.CheckEmail when !string.IsNullOrWhiteSpace(Model.Email.Email) =>
+            null,
+        AuthMode.ResendVerification => "Enter your work email and we'll send a new verification link.",
+        AuthMode.Login => "Use the work email you registered with.",
+        _ => null
+    };
+
+    if (showSteps3)
+    {
+        ViewData["AuthResetStep"] = resetStep;
+        ViewData["AuthResetLabels"] = new[] { "Email", "Code", "New password" };
+    }
+
+}
+
+<div class="auth-panel lp-card-inner">
+    @if (showSteps3)
+    {
+        <partial name="_AuthSteps3" />
+    }
+
+    <div>
+        @if (showEyebrow)
+        {
+            <div class="eyebrow">@eyebrow</div>
+        }
+        <div class="auth-head">
+            <h1 class="h1" style="margin-top:@(showEyebrow ? "6" : "0")px">@Model.Title</h1>
+            @if (Model.Mode == AuthMode.VerifyOtp)
+            {
+                <p class="lede" style="margin-top:8px">
+                    If an account exists for <strong class="strong">@Model.Otp.Email</strong>, a code is on its way. It expires in 10 minutes.
+                </p>
+            }
+            else if (Model.Mode == AuthMode.CheckEmail && !string.IsNullOrWhiteSpace(Model.Email.Email))
+            {
+                <p class="lede" style="margin-top:8px">
+                    We've sent a verification link to <strong class="strong">@Model.Email.Email</strong>. The link works for 24 hours.
+                </p>
+            }
+            else if (subtitle is not null)
+            {
+                <p class="lede" style="margin-top:@(Model.Mode == AuthMode.Login ? "6" : "8")px">@subtitle</p>
+            }
+        </div>
+    </div>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="auth-banner ok" role="status">
+            <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+            <span>@success</span>
+        </div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="auth-banner bad" role="alert">
+            <svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 8v5M12 16h.01" /><circle cx="12" cy="12" r="9" /></svg>
+            <span>@error</span>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Model.Info) && Model.Mode is not AuthMode.ResetPassword and not AuthMode.VerifyOtp)
+    {
+        <div class="note" role="status">
+            <div><p class="nd">@Model.Info</p></div>
+        </div>
+    }
+
+    @switch (Model.Mode)
+    {
+        case AuthMode.Register:
+            <vc:register-form model="Model.Register"></vc:register-form>
+            break;
+        case AuthMode.CheckEmail:
+        case AuthMode.ResendVerification:
+            <vc:check-email-form model="Model.Email"></vc:check-email-form>
+            break;
+        case AuthMode.ForgotPassword:
+            <vc:forgot-password-form model="Model.Email"></vc:forgot-password-form>
+            break;
+        case AuthMode.VerifyOtp:
+            <vc:verify-otp-form model="Model.Otp"></vc:verify-otp-form>
+            break;
+        case AuthMode.ResetPassword:
+            <vc:reset-password-form model="Model.Reset"></vc:reset-password-form>
+            break;
+        case AuthMode.ChangeTemporaryPassword:
+            <vc:change-temporary-password-form model="Model.Reset"></vc:change-temporary-password-form>
+            break;
+        default:
+            <vc:login-form model="Model.Login"></vc:login-form>
+            break;
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (Model.Mode is AuthMode.ResetPassword or AuthMode.ChangeTemporaryPassword or AuthMode.Register)
+    {
+        <script src="~/js/password-policy.js" asp-append-version="true"></script>
+    }
+    @if (Model.Mode == AuthMode.VerifyOtp)
+    {
+        <script src="~/js/auth-otp.js" asp-append-version="true"></script>
+    }
+}

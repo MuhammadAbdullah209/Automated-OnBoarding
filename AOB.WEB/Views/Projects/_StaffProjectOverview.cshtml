@@ -1,0 +1,56 @@
+@model AOB.WEB.ViewModels.Projects.ProjectDetailsViewModel
+@using AOB.BAL.Common.Enums
+@{
+    var project = Model.Details.Project;
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+    ViewData["DocSectionNo"] = "00";
+    ViewData["DocTitle"] = "Project overview";
+    ViewData["DocLede"] = "Review requests, documents, and onboarding progress. Use Details for the full submission; the latest activity is on the right, with the full history on the Activity tab.";
+    ViewData["DocRequiredNote"] = false;
+
+    ViewData["StaffOverviewSheets"] = true;
+    ViewData["ProjectDocumentsProjectId"] = project.Id;
+    ViewData["ProjectDocumentsInline"] = true;
+    ViewData["ProjectDocumentsAlwaysShow"] = true;
+}
+
+<div class="doc rise project-flow-form doc--flow-actions project-flow-form--staff">
+    <partial name="_ProjectDocHeader" />
+    <div class="staff-overview-split">
+        <div class="staff-overview-main">
+            <partial name="_StaffProjectActionsBar" model="project" />
+
+            <section class="sheet staff-overview-sheet" aria-labelledby="staff-onboard-h">
+                <div class="sheet-h">
+                    <div class="sheet-ttl">
+                        <h2 class="h3" id="staff-onboard-h">Onboarding sections</h2>
+                        <p class="small muted">Expand a step to see the customer’s selections.</p>
+                    </div>
+                </div>
+                <div class="sheet-b staff-overview-sheet-b">
+                    <partial name="_StaffOnboardingSections" model="Model" />
+                </div>
+            </section>
+
+            <partial name="_AccountCreationStaffCard" model="project" />
+            <partial name="_UsersCard" model="project" />
+            <partial name="_InformationRequestsCard" model="project" />
+            <partial name="_ProjectDocumentsPanel" />
+        </div>
+
+        <aside class="staff-overview-aside" aria-label="Project context">
+            <partial name="_StaffProjectBuildCard" model="project" />
+            <partial name="_StaffProjectActivity" />
+        </aside>
+    </div>
+</div>
+
+<script src="~/js/project-ajax.js" asp-append-version="true"></script>
+<script>
+    sessionStorage.removeItem('aob-back-to-projects');
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        sessionStorage.setItem('aob-back-to-projects', '1');
+        location.reload();
+    });
+</script>

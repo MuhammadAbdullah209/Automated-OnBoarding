@@ -1,0 +1,22 @@
+@model (Guid ProjectId, Guid ItemId, string Title, bool CanApprove)
+@*
+    Approve / Reject / Resolve for the customer's latest response to one requested document. Approve only shows when
+    the response has a document. Reject and Resolve ask for a note first (project-ajax.js, data-info-review); the
+    server checks the same rules.
+*@
+@{
+    var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
+}
+<form asp-controller="Projects" asp-action="ReviewInformation" asp-route-customerId="@actingCustomerId" asp-route-id="@Model.ProjectId" method="post"
+      class="info-review doc-panel-review row" data-info-review-form data-item-title="@Model.Title">
+    <input type="hidden" name="itemId" value="@Model.ItemId" />
+    <input type="hidden" name="note" value="" data-review-note />
+    @* Disabled until Reject / Resolve fill it, so it never competes with the Approve button's own value. *@
+    <input type="hidden" name="decision" value="" data-review-decision disabled />
+    <button type="button" class="btn btn-sm btn-text" data-info-review="Reject">Reject</button>
+    <button type="button" class="btn btn-sm btn-secondary" data-info-review="Resolve">Resolve</button>
+    @if (Model.CanApprove)
+    {
+        <button type="submit" name="decision" value="Approve" class="btn btn-primary btn-sm">Approve</button>
+    }
+</form>
