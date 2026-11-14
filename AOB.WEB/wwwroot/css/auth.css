@@ -311,7 +311,9 @@
 .check input:checked + .box svg { opacity: 1; }
 .check .box svg { opacity: 0; }
 .check input:focus-visible + .box { outline: 3px solid var(--color-primary-light); outline-offset: 2px; }
-
+.btn.sweep {
+    overflow: hidden;
+}
 .btn.sweep::after {
   content: "";
   position: absolute;
