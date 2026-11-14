@@ -65,14 +65,14 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         (function () {
-            // jquery-validation skips data-val-required on checkboxes, so require this one directly.
-            if (window.jQuery) {
-                var confirmForm = document.querySelector('form[action*="ConfirmDelete"]');
-                var validator = jQuery(confirmForm).data('validator') || jQuery(confirmForm).validate();
-                validator.settings.rules.Confirmed = { required: true };
-                validator.settings.messages.Confirmed = { required: 'Confirm that this project should be deleted.' };
+                        if (window.jQuery) {
+                jQuery(function () {
+                    var confirmForm = document.querySelector('form[action*="ConfirmDelete"]');
+                    var validator = jQuery(confirmForm).data('validator') || jQuery(confirmForm).validate();
+                    validator.settings.rules.Confirmed = { required: true };
+                    validator.settings.messages.Confirmed = { required: 'Confirm that this project should be deleted.' };
+                });
             }
-
             var listUrl = @Json.Serialize(listUrl);
             sessionStorage.removeItem('aob-back-to-projects');
             history.pushState({ aobConfirmDelete: true }, '', location.href);
