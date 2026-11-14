@@ -13,6 +13,7 @@ namespace AOB.WEB.ViewModels.Auth
 
         // Remote: checked against every account as the user types (AuthController.IsEmailAvailable); Register re-checks.
         [Required, EmailAddress, StringLength(320), Display(Name = "Work email")]
+        [RegularExpression(ValidationMessages.EmailPattern, ErrorMessage = ValidationMessages.EmailFormat)]
         [Remote("IsEmailAvailable", "Auth", ErrorMessage = ValidationMessages.EmailInUse)]
         public string Email { get; set; } = string.Empty;
 
