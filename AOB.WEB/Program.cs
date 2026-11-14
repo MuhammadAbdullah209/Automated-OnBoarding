@@ -42,6 +42,44 @@ builder.Services
         options.Cookie.SameSite = SameSiteMode.Lax;
         // Development also runs over plain http://localhost, so the Secure flag is enforced everywhere else.
         options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+
+        // Re-check the account at most every 2 minutes so disabling a user or customer ends their session,
+        // without hitting the database on every request (the last check time is kept inside the auth cookie).
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            const string checkedAtKey = ".aob.checkedAt";
+            var now = DateTimeOffset.UtcNow;
+
+            if (context.Properties.Items.TryGetValue(checkedAtKey, out var lastValue)
+                && DateTimeOffset.TryParse(lastValue, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var lastChecked)
+                && now - lastChecked < TimeSpan.FromMinutes(2))
+            {
+                return;
+            }
+
+            var idValue = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var users = context.HttpContext.RequestServices
+                .GetRequiredService<AOB.BAL.Interfaces.Repositories.IUserAuthRepository>();
+            var auth = Guid.TryParse(idValue, out var userId) ? await users.GetByIdAsync(userId) : null;
+
+            var blocked = auth is null
+                || !auth.IsActive
+                || (auth.UserType == AOB.BAL.Common.Enums.UserType.Customer
+                    && auth.Customer?.Status == AOB.BAL.Common.Enums.CustomerStatus.Disabled);
+
+            if (blocked)
+            {
+                context.RejectPrincipal();
+                await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignOutAsync(
+                    context.HttpContext,
+                    Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
+            }
+
+            context.Properties.Items[checkedAtKey] = now.ToString("O");
+            context.ShouldRenew = true;
+        };
     });
 
 builder.Services.AddAntiforgery(options =>
