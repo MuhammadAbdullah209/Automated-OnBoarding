@@ -95,7 +95,7 @@
                     }
 
                     @* A project cannot be deleted once its provisioning is complete. *@
-                    @if (!readOnlyStaff && Model.DeletionScheduledFor is null && !provisioned)
+                     @if (!readOnlyStaff && Model.DeletionScheduledFor is null && !provisioned && Model.Status != ProjectStatus.Approval)
 
                     {
 
