@@ -521,7 +521,12 @@ namespace AOB.WEB.Controllers
                 // then continues to the overview. A project that is not provisioned (custom, or provisioning
                 // stopped) goes to the overview instead.
                 var status = result.Data!.Status;
-                if (status is ProjectStatus.Completed or ProjectStatus.AccountCreation)
+                if (status == ProjectStatus.AccountCreation)
+                {
+                    return RedirectToAction(nameof(Details), null, ProjectRoute(id), "users-card");
+                }
+
+                if (status == ProjectStatus.Completed)
                 {
                     return RedirectToAction(nameof(Provisioning), ProvisioningWalkthroughRoute(id));
                 }
@@ -568,8 +573,7 @@ namespace AOB.WEB.Controllers
             var isComplete = info.Data.Status is ProjectStatus.Completed or ProjectStatus.AccountCreation || info.Data.StepsComplete;
             var requiresAccount = overview?.RequiresAccount ?? false;
             var accountCreated = info.Data.AccountCreated;
-            var showLiveStaging = isComplete
-                && !(info.Data.Status == ProjectStatus.AccountCreation && requiresAccount && !accountCreated);
+            var showLiveStaging = info.Data.Status == ProjectStatus.Completed;
             ViewData["ProvisioningStepsComplete"] = info.Data.StepsComplete;
             ViewData["AccountCreated"] = accountCreated;
             ViewData["ProjectHubMode"] = true;
