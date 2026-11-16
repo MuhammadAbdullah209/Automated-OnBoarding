@@ -52,8 +52,8 @@ namespace AOB.WEB.ViewModels.Projects
             !RequiresAccount && IsComplete && Status == ProjectStatus.Completed;
 
         /// <summary>Live-in-staging experience (hero, test payment); hosted builds get this after the account exists, before Completed.</summary>
-        public bool PostProvisionLiveStaging =>
-            IsComplete && (Status == ProjectStatus.Completed || (HostedAccountCreationPhase && AccountCreated));
+                public bool PostProvisionLiveStaging =>
+            IsComplete && Status == ProjectStatus.Completed;
 
         /// <summary>Customer must upload the users list.</summary>
         public bool ShowAccountCreationGate => ShowPostProvisionLayout && PostProvisionAccountCreationGate;
