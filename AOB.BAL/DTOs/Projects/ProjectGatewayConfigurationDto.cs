@@ -15,7 +15,8 @@ namespace AOB.BAL.DTOs.Projects
 
         /// <summary>Selectable output fields the customer ticked (PaymentGatewayField ids).</summary>
         public List<Guid> SelectedOutputFields { get; set; } = new();
-
+        [MinLength(1, ErrorMessage = "Select at least one way for payment results to come back.")]
+        [Display(Name = "How should payment results come back?")]
         public List<PostTransactionMethod> PostTransactionMethods { get; set; } = new();
 
         // Required when PostTransactionMethods contains Redirect: where customers are sent after paying.

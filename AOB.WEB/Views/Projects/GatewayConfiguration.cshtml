@@ -71,6 +71,7 @@
             <p class="flow-section-hint qd">Choose all the methods your system will use.</p>
             <div class="qctl">
                 @Html.EnumMultiSelect("PostTransactionMethods", postTransactionLabels, postTransactionSelected, placeholder: "Select how data is returned")
+                <span asp-validation-for="PostTransactionMethods" class="text-danger d-block"></span>
             </div>
         </section>
 
