@@ -37,7 +37,8 @@ namespace AOB.BAL.DTOs.Projects
         public string? CustomerAcquirer { get; set; }
 
         public List<PaymentType> PaymentTypes { get; set; } = new();
-
+        [MinLength(1, ErrorMessage = "Select at least one currency.")]
+        [Display(Name = "Currencies")]
         public List<CurrencyCode> Currencies { get; set; } = new();
 
         [Display(Name = "Card number masking")]
