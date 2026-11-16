@@ -425,6 +425,12 @@ namespace AOB.DAL.Implementations.Services
                 return ServiceResult<DateTimeOffset>.Failure("This project can no longer be deleted because it has been provisioned.");
             }
 
+            // A project waiting for PCI Pal approval cannot be deleted by the customer.
+            if (project.Status == ProjectStatus.Approval && project.DeletionScheduledFor is null)
+            {
+                return ServiceResult<DateTimeOffset>.Failure("This project can't be deleted while it is pending PCI Pal approval.");
+            }
+
             // Asking again while the countdown runs does not extend it or replace the reason.
             if (project.DeletionScheduledFor is { } already)
             {

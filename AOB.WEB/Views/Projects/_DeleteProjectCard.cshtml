@@ -9,7 +9,8 @@
     var actingCustomerId = ViewData["ActingCustomerId"] as Guid?;
     var provisioned = Model.Status is ProjectStatus.AccountCreation or ProjectStatus.Completed
         || (Model.Status == ProjectStatus.Provisioning && ViewData["ProvisioningStepsComplete"] is true);
-    var visible = !readOnlyStaff && Model.DeletionScheduledFor is null && !provisioned;
+        var visible = !readOnlyStaff && Model.DeletionScheduledFor is null && !provisioned
+        && Model.Status != ProjectStatus.Approval;
 }
 
 @if (visible)
