@@ -573,7 +573,8 @@ namespace AOB.WEB.Controllers
             var isComplete = info.Data.Status is ProjectStatus.Completed or ProjectStatus.AccountCreation || info.Data.StepsComplete;
             var requiresAccount = overview?.RequiresAccount ?? false;
             var accountCreated = info.Data.AccountCreated;
-            var showLiveStaging = info.Data.Status == ProjectStatus.Completed;
+            var showLiveStaging = isComplete
+                && !(info.Data.Status == ProjectStatus.AccountCreation && requiresAccount && !accountCreated);
             ViewData["ProvisioningStepsComplete"] = info.Data.StepsComplete;
             ViewData["AccountCreated"] = accountCreated;
             ViewData["ProjectHubMode"] = true;
