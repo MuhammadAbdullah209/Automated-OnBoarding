@@ -3,7 +3,7 @@
 .rise { animation: layout-rise .3s var(--ease); }
 @keyframes layout-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-.home-band { padding-block: 28px 96px; }
+.home-band { padding-block: 28px 72px; }
 .home-band .h1 { font-size: 34px; }
 
 /* Bleed pages reset .wrap padding — restore prototype .ph spacing on list headers */
@@ -51,7 +51,7 @@
 .home-sum .kv { font-size: 28px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
 .home-sum .kl { font-size: 12.5px; color: var(--band-sub); }
 
-.overlap { margin-top: -72px; position: relative; z-index: 1; }
+.overlap { margin-top: -48px; position: relative; z-index: 1; }
 .home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;

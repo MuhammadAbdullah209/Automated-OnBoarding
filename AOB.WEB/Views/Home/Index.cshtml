@@ -320,14 +320,9 @@ else
                 <div class="k"><span class="kv">@ProjectCount(ProjectStatus.Approval)</span><span class="kl">Pending approval</span></div>
                 <div class="k"><span class="kv">@completedCount</span><span class="kl">Submitted and completed</span></div>
             </div>
-        </div>
-    </section>
-
-    <div class="wrap overlap rise">
-        @* Information requests: staff have something to review, or the customer has something to provide. *@
-        @if (Model.Audience == DashboardAudience.Internal && (data.InformationSubmitted > 0 || data.InformationRequested > 0))
+             @if (Model.Audience == DashboardAudience.Internal && (data.InformationSubmitted > 0 || data.InformationRequested > 0))
         {
-            <div class="stack-sm" style="margin-bottom:20px">
+            <div class="stack-sm" style="margin-top:20px">
                 @if (data.InformationSubmitted > 0)
                 {
                     <div class="note you" role="status">
@@ -346,11 +341,17 @@ else
         }
         else if (Model.Audience != DashboardAudience.Internal && data.InformationRequested > 0)
         {
-            <div class="note bad" role="alert" style="margin-bottom:20px">
+            <div class="note bad" role="alert" style="margin-top:20px">
                 <span class="ni" aria-hidden="true"><svg class="i sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg></span>
                 <div><div class="nt">Action required</div><div class="nd">We need additional information on @data.InformationRequested @(data.InformationRequested == 1 ? "project" : "projects") to continue.</div></div>
             </div>
         }
+        </div>
+    </section>
+
+    <div class="wrap overlap rise">
+        @* Information requests: staff have something to review, or the customer has something to provide. *@
+       
 
         <div class="home-grid" style="padding-top:0">
             <section class="sheet dash-recent" aria-labelledby="dash-projects-heading" style="overflow:hidden">
