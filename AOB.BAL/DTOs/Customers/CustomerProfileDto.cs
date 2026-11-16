@@ -25,6 +25,7 @@ namespace AOB.BAL.DTOs.Customers
         public string? IndustrySector { get; set; }
 
         [StringLength(500), Display(Name = "Company website")]
+        [RegularExpression(@"^(https?://)?([A-Za-z0-9-]+\.)+[A-Za-z]{2,}(:\d{1,5})?(/\S*)?$",ErrorMessage = "Enter a valid website, like https://www.example.com.")]
         public string? CompanyWebsite { get; set; }
 
         // ----- Primary project contact -----
