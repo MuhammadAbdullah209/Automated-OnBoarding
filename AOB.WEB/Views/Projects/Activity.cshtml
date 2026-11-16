@@ -13,7 +13,7 @@
     if (Model.IsSubmitted || readOnlyStaff)
     {
         ViewData["ProjectHubMode"] = true;
-        ViewData["ProjectHubLive"] = Model.Status is ProjectStatus.Completed or ProjectStatus.AccountCreation;
+        ViewData["ProjectHubLive"] = Model.Status is ProjectStatus.Completed;
         ViewData["ShowLaunchFlow"] = !readOnlyStaff && Model.Status == ProjectStatus.Completed && Model.BuildType != BuildType.Custom;
     }
 

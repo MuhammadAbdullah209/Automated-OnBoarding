@@ -15,7 +15,7 @@
     if (project.IsSubmitted || readOnlyStaff)
     {
         ViewData["ProjectHubMode"] = true;
-        ViewData["ProjectHubLive"] = project.Status is ProjectStatus.Completed or ProjectStatus.AccountCreation;
+        ViewData["ProjectHubLive"] = project.Status is ProjectStatus.Completed;
         ViewData["ShowLaunchFlow"] = !readOnlyStaff && project.Status == ProjectStatus.Completed && project.BuildType != BuildType.Custom;
     }
 }
