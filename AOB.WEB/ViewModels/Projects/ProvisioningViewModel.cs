@@ -65,12 +65,11 @@ namespace AOB.WEB.ViewModels.Projects
         public bool ShowLiveView => ShowLiveStaging;
 
         public bool CanLaunchFlow =>
-            BuildType != AOB.BAL.Common.Enums.BuildType.Custom
-            && (Status == ProjectStatus.Completed || (HostedAccountCreationPhase && AccountCreated));
+            Status == ProjectStatus.Completed || (HostedAccountCreationPhase && AccountCreated);
 
         /// <summary>SDP is ready whenever the pack applies (including while the post-submit walk-through is playing).</summary>
         public bool CanDownloadSetupPack => PostProvisionShowSetupPack;
 
-        public bool ShowLaunchUi => PostProvisionLiveStaging && BuildType != AOB.BAL.Common.Enums.BuildType.Custom;
+        public bool ShowLaunchUi => PostProvisionLiveStaging;
     }
 }

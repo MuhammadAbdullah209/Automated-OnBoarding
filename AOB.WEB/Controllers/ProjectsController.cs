@@ -195,7 +195,7 @@ namespace AOB.WEB.Controllers
             }
 
             // Live standard projects use the Status hub (Provisioning), not the pre-submit overview.
-            if (project.Status == ProjectStatus.Completed && project.BuildType != BuildType.Custom)
+            if (project.Status == ProjectStatus.Completed && (project.BuildType != BuildType.Custom || !IsStaff))
             {
                 var liveProv = await projectService.GetProvisioningInfoAsync(customerId, id);
                 if (liveProv.Data?.StepsComplete == true)
@@ -541,7 +541,7 @@ namespace AOB.WEB.Controllers
                 }
 
                 // Not a standard build: it waits for approval, so show the overview with its Pending approval status.
-                return RedirectToAction(nameof(Details), ProjectRoute(id));
+                return RedirectToAction(nameof(Details), ProjectRoute(id)); 
             }
 
             TempData["Error"] = result.Error;
@@ -585,8 +585,8 @@ namespace AOB.WEB.Controllers
             // The "Submitted" confirmation is for the customer, once, straight after they submit.
             ViewData["ShowProvSubmittedBanner"] = fromSubmit && !IsStaff && overview?.IsSubmitted == true;
             var liveStandard = showLiveStaging && overview?.BuildType != BuildType.Custom;
-            ViewData["ShowLaunchFlow"] = liveStandard && (info.Data.Status == ProjectStatus.Completed || accountCreated);
-            ViewData["ShowLaunchFlowPending"] = fromSubmit && liveStandard && !accountCreated;
+            ViewData["ShowLaunchFlow"] = showLiveStaging && (info.Data.Status == ProjectStatus.Completed || accountCreated);
+            ViewData["ShowLaunchFlowPending"] = fromSubmit && showLiveStaging && !accountCreated;
             ViewData["StaffLiveStandardStatus"] = ViewData["ReadOnlyStaff"] is true && liveStandard;
             ViewData["ShowStaffGenerateSdp"] = ViewData["ReadOnlyStaff"] is true && liveStandard
                 && !requiresAccount && info.Data.Status == ProjectStatus.Completed;
@@ -654,11 +654,6 @@ namespace AOB.WEB.Controllers
         [HttpPost]
         public async Task<IActionResult> FlowLaunch(Guid id)
         {
-            if ((await LoadProjectAsync(id))?.BuildType == BuildType.Custom)
-            {
-                return RedirectToAction(nameof(Details), ProjectRoute(id));
-            }
-
             var result = await flowLaunchService.LaunchAsync(GetCustomerId(), id);
             if (!result.Succeeded || result.Data is null)
             {
