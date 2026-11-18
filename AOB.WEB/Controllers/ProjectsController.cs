@@ -513,14 +513,17 @@ namespace AOB.WEB.Controllers
 
             if (result.Succeeded)
             {
-                // Show everything that was submitted. The customer is not told whether the build is standard or custom.
+                var status = result.Data!.Status;
+
+                // A project waiting for approval does not continue on its own, and no confirmation email is sent on submit.
                 TempData["SuccessTitle"] = "Submitted";
-                TempData["Success"] = "We’ve emailed a confirmation. Your answers are now read-only and setup will continue automatically.";
+                TempData["Success"] = status == ProjectStatus.Approval
+                    ? "Your answers are now read-only. PCI Pal will review your project before setup starts."
+                    : "Your answers are now read-only and setup will continue automatically.";
 
                 // A standard build provisions itself on submit: go straight to the provisioning page, which
                 // then continues to the overview. A project that is not provisioned (custom, or provisioning
                 // stopped) goes to the overview instead.
-                var status = result.Data!.Status;
                 if (status == ProjectStatus.AccountCreation)
                 {
                     return RedirectToAction(nameof(Details), null, ProjectRoute(id), "users-card");

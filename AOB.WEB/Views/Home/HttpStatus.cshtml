@@ -1,0 +1,25 @@
+﻿@model int
+@{
+    var (eyebrow, heading, text) = Model switch
+    {
+        404 => ("Not found", "We couldn’t find that page",
+                "The link may be out of date, or the item was deleted or moved."),
+        429 => ("Too many attempts", "Please wait a moment",
+                "You’ve made a lot of requests in a short time. Wait a minute, then try again."),
+        403 => ("Access denied", "You don’t have permission to view this page",
+                "Sign in with an account that has access, or go back to Home."),
+        _ => ("Error " + Model, "Something went wrong",
+                "We couldn’t complete your request. If this keeps happening, contact PCI Pal support.")
+    };
+    ViewData["Title"] = heading;
+}
+
+<div class="sheet" style="max-width:560px;margin:0 auto">
+    <div class="sheet-b stack-sm">
+        <div class="eyebrow">@eyebrow</div>
+        <h1 class="h2">@heading</h1>
+        <p class="lede">@text</p>
+        <p class="small muted">Code: <span class="mono">@Model</span></p>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">Back to Home</a>
+    </div>
+</div>

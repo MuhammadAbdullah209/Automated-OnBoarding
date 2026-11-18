@@ -106,5 +106,16 @@ namespace AOB.WEB.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+        /// <summary>
+        /// The page for an error status that has no body of its own (404, 429, ...). Program.cs re-executes the
+        /// request here with the original status code, so the URL and the status stay the same.
+        /// </summary>
+        [AllowAnonymous]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult HttpStatus(int code)
+        {
+            Response.StatusCode = code;
+            return View(code);
+        }
     }
 }
